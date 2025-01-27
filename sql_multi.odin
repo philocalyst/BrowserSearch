@@ -37,8 +37,6 @@ select_multi :: proc(
 
 		//Specific logic to cover for the diverging database naming schemes for both Firefox-based browsers and Safari-based Browsers
 		if (name == "last_visit_time") {
-			fmt.print("OOOOOOh")
-			fmt.println("statement", mod_statement)
 			if (strings.contains(mod_statement, "moz_places")) {
 				table_accessor = strings.concatenate({database[index], ".", "last_visit_date"})
 			} else if (strings.contains(mod_statement, "safari")) {

@@ -3,6 +3,7 @@ import "base:runtime"
 import "core:c/libc"
 import "core:encoding/cbor"
 import "core:encoding/endian"
+import "core:encoding/json"
 import "core:fmt"
 import "core:math"
 import "core:os"
@@ -201,7 +202,6 @@ main :: proc() {
 			create_column_map(&target_tables, application_name, &results)
 
 			select_statement := create_select_statement(application_name, target_tables)
-			fmt.println(select_statement)
 
 			query_sqlite(temporary_path, select_statement, &recent_results)
 		}
@@ -223,15 +223,24 @@ main :: proc() {
 		} else {url_map[row.url] = &row}
 	}
 
-	time.stopwatch_stop(timer)
-	fmt.println(time.stopwatch_duration(timer^))
-	fmt.print(OK_ARRAY)
+	items := make([dynamic]AlfredItem)
 
 	for result in results {
 		if strings.contains(result.title, os.args[1]) {
-			fmt.println(result)
+			append(
+				&items,
+				AlfredItem {
+					title = result.title,
+					subtitle = result.url,
+					arg = result.url,
+					valid = true,
+				},
+			)
 		}
 	}
+
+	json_data, err := generate_alfred_json(items[:])
+	println(string(json_data))
 
 	write_last_cached_date(time_location)
 }
@@ -286,7 +295,6 @@ create_select_statement :: proc(
 	index := 0
 
 	join_clause := determine_join_clause(application)
-	fmt.println(columns)
 
 	for string, column in columns {
 		up_one := strings.cut(column, 0, strings.index_any(column, "."))
@@ -346,7 +354,6 @@ create_temporary_database :: proc(original_database: string, application: string
 	)
 	ok := os2.copy_file(database_replica_path, original_database)
 
-	fmt.print(ok)
 	return database_replica_path
 }
 
@@ -354,7 +361,6 @@ create_storage_directory :: proc() -> (filename: string) {
 	data_home := os.get_env("XDG_DATA_HOME")
 	if (data_home == "") {
 		data_home = strings.concatenate({os.get_env("HOME"), "/.local/share/"})
-		fmt.print(data_home)
 	}
 	local_location: strings.Builder
 	strings.builder_init(&local_location)
@@ -366,7 +372,6 @@ create_storage_directory :: proc() -> (filename: string) {
 	if !os.exists(strings.to_string(local_location)) {
 		err := os.make_directory(strings.to_string(local_location), 0o666)
 		fmt.println("directory_make", strings.to_string(local_location))
-		fmt.println(err)
 	}
 
 	return strings.to_string(local_location)
@@ -375,7 +380,6 @@ create_storage_directory :: proc() -> (filename: string) {
 write_to_cache :: proc(data: [dynamic]Result, location: string) {
 	// Marshall here into cbor for inexpensive cold start
 	cbor_stream, err := read_and_marshal(data)
-	fmt.println(err)
 	ok := os.write_entire_file(location, cbor_stream, false)
 }
 
