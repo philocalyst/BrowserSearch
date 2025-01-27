@@ -163,7 +163,8 @@ main :: proc() {
 	index := 0
 	for browser in BROWSERS {
 		value, _ := enum_value_to_string(browser)
-		if get_environment_boolean(value) || value == "safari" || value == "arc" {
+		yes := bool(strconv.atoi(os.get_env(value)))
+		if yes {
 			local_histories[index] = strings.concatenate({user_directory, HISTORY_PATHS[browser]})
 		}
 		index += 1
@@ -225,17 +226,18 @@ main :: proc() {
 
 	items := make([dynamic]AlfredItem)
 
+	count := 0
 	for result in results {
+		if count >= 1000 {
+			break
+		}
+		argument := strings.concatenate(os.args)
 		if strings.contains(result.title, os.args[1]) {
 			append(
 				&items,
-				AlfredItem {
-					title = result.title,
-					subtitle = result.url,
-					arg = result.url,
-					valid = true,
-				},
+				AlfredItem{title = result.title, arg = result.url, subtitle = result.url},
 			)
+			count += 1
 		}
 	}
 
@@ -276,7 +278,7 @@ create_select_statement :: proc(
 	defer strings.builder_destroy(&statement)
 
 	last_cached_date, _ := os.read_entire_file_from_filename(
-		"/Users/philocalyst/.local/share/browserSearch/last-cached.txt",
+		"~/.local/share/browserSearch/last-cached.txt",
 	)
 
 	select_statement: strings.Builder

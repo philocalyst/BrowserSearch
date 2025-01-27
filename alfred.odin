@@ -40,7 +40,7 @@ AlfredItem :: struct {
 	uid:          string `json:"uid,omitempty"`,
 	title:        string `json:"title"`,
 	subtitle:     string `json:"subtitle,omitempty"`,
-	arg:          Maybe(Arg) `json:"arg,omitempty"`,
+	arg:          Arg `json:"arg,omitempty"`,
 	autocomplete: string `json:"autocomplete,omitempty"`,
 	icon:         Maybe(Icon) `json:"icon,omitempty"`,
 	valid:        Maybe(bool) `json:"valid,omitempty"`,
