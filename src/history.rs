@@ -3,6 +3,7 @@ use crate::browser::{get_available_browsers, Browser};
 use crate::cache::get_cached_results;
 use crate::db::{create_temp_db_copy, query_chrome_history, query_safari_history};
 use crate::search::{filter_results, ResultSource, SearchResult};
+use crate::utils::fetch_favicons;
 use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
 use rayon::prelude::*;
 use std::collections::HashSet;
@@ -19,14 +20,14 @@ pub fn search(query: &str) -> Result<Vec<SearchResult>, Box<dyn Error>> {
         Err(_) => Vec::new(),
     };
 
-    // Perform searches in parallel using rayon
-    let browser_results: Vec<Vec<SearchResult>> = browsers
+    // Get browser histories
+    let browser_histories: Vec<Vec<SearchResult>> = browsers
         .par_iter()
         .filter_map(|(browser, paths)| {
             if let Some(history_path) = &paths.history {
                 let result = match browser {
-                    Browser::Safari => search_safari_history(history_path, query),
-                    _ => search_chrome_history(history_path, query, *browser),
+                    Browser::Safari => get_safari_history(history_path),
+                    _ => get_chrome_history(history_path),
                 };
 
                 match result {
@@ -54,7 +55,7 @@ pub fn search(query: &str) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     }
 
     // Add new results from browsers
-    for results in browser_results {
+    for results in browser_histories {
         for result in results {
             if seen_urls.insert(result.url.clone()) {
                 all_results.push(result);
@@ -66,17 +67,16 @@ pub fn search(query: &str) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     all_results.sort_by(|a, b| b.last_visit.unwrap_or(0).cmp(&a.last_visit.unwrap_or(0)));
 
     // Limit to 30 results
-    let limited_results = all_results.into_iter().take(30).collect();
+    let mut limited_results: Vec<SearchResult> = all_results.into_iter().take(30).collect();
+
+    // After all processing is finished, download the favicons.
+    fetch_favicons(&mut limited_results)?;
 
     Ok(limited_results)
 }
 
-/// Search Chrome-based browser history
-fn search_chrome_history(
-    db_path: &std::path::Path,
-    query: &str,
-    browser: Browser,
-) -> Result<Vec<SearchResult>, Box<dyn Error>> {
+/// Get Chrome-based browser history
+fn get_chrome_history(db_path: &std::path::Path) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     // Create a temporary copy of the database
     let (_temp_file, conn) = create_temp_db_copy(db_path)?;
 
@@ -111,7 +111,7 @@ fn search_chrome_history(
             title,
             url,
             subtitle: format!("Last visit: {} (Visits: {})", formatted_date, visit_count),
-            favicon: None, // We'll add favicon later if needed
+            favicon: None,
             source: ResultSource::History,
             visit_count: Some(visit_count as u32),
             last_visit: Some(last_visit),
@@ -131,11 +131,8 @@ fn search_chrome_history(
     Ok(filtered_results)
 }
 
-/// Search Safari history
-fn search_safari_history(
-    db_path: &std::path::Path,
-    query: &str,
-) -> Result<Vec<SearchResult>, Box<dyn Error>> {
+/// Get Safari history
+fn get_safari_history(db_path: &std::path::Path) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     // Create a temporary copy of the database
     let (_temp_file, conn) = create_temp_db_copy(db_path)?;
 
