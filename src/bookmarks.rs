@@ -1,0 +1,175 @@
+// src/bookmarks.rs
+use crate::browser::{get_available_browsers, Browser};
+use crate::search::{filter_results, ResultSource, SearchResult};
+use plist::Value as PlistValue;
+use rayon::prelude::*;
+use serde_json::Value;
+use std::error::Error;
+use std::fs::File;
+use std::io::Read;
+use std::path::Path;
+
+/// Search bookmarks across all enabled browsers
+pub fn search(query: &str) -> Result<Vec<SearchResult>, Box<dyn Error>> {
+    let browsers = get_available_browsers();
+
+    // Perform searches in parallel using rayon
+    let browser_results: Vec<Vec<SearchResult>> = browsers
+        .par_iter()
+        .filter_map(|(browser, paths)| {
+            if let Some(bookmarks_path) = &paths.bookmarks {
+                let result = match browser {
+                    Browser::Safari => search_safari_bookmarks(bookmarks_path, query),
+                    _ => search_chrome_bookmarks(bookmarks_path, query),
+                };
+
+                match result {
+                    Ok(results) => Some(results),
+                    Err(e) => {
+                        log::error!("Error searching {:?} bookmarks: {}", browser, e);
+                        None
+                    }
+                }
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    // Collect results
+    let mut all_results = Vec::new();
+    for results in browser_results {
+        all_results.extend(results);
+    }
+
+    // Deduplicate by URL
+    let mut seen = std::collections::HashSet::new();
+    all_results.retain(|result| seen.insert(result.url.clone()));
+
+    // Sort alphabetically
+    all_results.sort_by(|a, b| a.title.cmp(&b.title));
+
+    Ok(all_results)
+}
+
+/// Search Chrome-based browser bookmarks
+fn search_chrome_bookmarks(
+    bookmark_path: &Path,
+    query: &str,
+) -> Result<Vec<SearchResult>, Box<dyn Error>> {
+    // Read the bookmarks file
+    let mut file = File::open(bookmark_path)?;
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)?;
+
+    // Parse JSON
+    let bookmarks: Value = serde_json::from_str(&contents)?;
+
+    // Extract all bookmarks
+    let mut results = Vec::new();
+    if let Some(roots) = bookmarks.get("roots") {
+        extract_chrome_bookmarks(roots, &mut results);
+    }
+
+    // Search bookmarks
+    let matching_results = filter_results(results, query);
+    Ok(matching_results)
+}
+
+/// Recursively extract bookmarks from Chrome JSON structure
+fn extract_chrome_bookmarks(value: &Value, results: &mut Vec<SearchResult>) {
+    if let Some(obj) = value.as_object() {
+        // Check if this is a bookmark
+        if let (Some(Value::String(url)), Some(Value::String(name)), Some(Value::String(typ))) =
+            (obj.get("url"), obj.get("name"), obj.get("type"))
+        {
+            if typ == "url" {
+                results.push(SearchResult {
+                    title: name.clone(),
+                    url: url.clone(),
+                    subtitle: url.clone(),
+                    favicon: None,
+                    source: ResultSource::Bookmark,
+                    visit_count: None,
+                    last_visit: None,
+                });
+            }
+        }
+
+        // Check for children (folders)
+        if let Some(Value::Array(children)) = obj.get("children") {
+            for child in children {
+                extract_chrome_bookmarks(child, results);
+            }
+        }
+
+        // Recursively check all properties
+        for (_, v) in obj {
+            extract_chrome_bookmarks(v, results);
+        }
+    } else if let Some(arr) = value.as_array() {
+        for item in arr {
+            extract_chrome_bookmarks(item, results);
+        }
+    }
+}
+
+/// Search Safari bookmarks
+fn search_safari_bookmarks(
+    bookmark_path: &Path,
+    query: &str,
+) -> Result<Vec<SearchResult>, Box<dyn Error>> {
+    // Read the plist file
+    let file = File::open(bookmark_path)?;
+    let value = plist::from_reader(file)?;
+
+    // Extract all bookmarks
+    let mut results = Vec::new();
+    extract_safari_bookmarks(&value, &mut results);
+
+    // Search bookmarks
+    let matching_results = filter_results(results, query);
+    Ok(matching_results)
+}
+
+/// Recursively extract bookmarks from Safari plist structure
+fn extract_safari_bookmarks(value: &PlistValue, results: &mut Vec<SearchResult>) {
+    match value {
+        PlistValue::Dictionary(dict) => {
+            // Check if this is a bookmark
+            if let (Some(PlistValue::String(url)), Some(PlistValue::Dictionary(uri_dict))) =
+                (dict.get("URLString"), dict.get("URIDictionary"))
+            {
+                if let Some(PlistValue::String(title)) = uri_dict.get("title") {
+                    results.push(SearchResult {
+                        title: title.clone(),
+                        url: url.clone(),
+                        subtitle: url.clone(),
+                        favicon: None,
+                        source: ResultSource::Bookmark,
+                        visit_count: None,
+                        last_visit: None,
+                    });
+                }
+            }
+
+            // Check for children (folders)
+            if let Some(PlistValue::Array(children)) = dict.get("Children") {
+                for child in children {
+                    extract_safari_bookmarks(child, results);
+                }
+            }
+
+            // Recursively check all values
+            for (_, v) in dict {
+                extract_safari_bookmarks(v, results);
+            }
+        }
+        PlistValue::Array(arr) => {
+            for item in arr {
+                extract_safari_bookmarks(item, results);
+            }
+        }
+        _ => {}
+    }
+}
