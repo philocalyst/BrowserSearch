@@ -1,4 +1,11 @@
-// src/cache.rs
+//! Simple file-based caching for search results.
+//!
+//! Implements:
+//! - `save_to_cache` and `get_cached_results` using bincode
+//! - `get_cache_dir` and `get_cache_file` to manage cache location
+//! - `update_cache_timestamp` / `get_cache_timestamp` for tracking
+//!   when the cache was last refreshed.
+
 use crate::search::SearchResult;
 use dirs::data_dir;
 use std::error::Error;

@@ -1,4 +1,11 @@
-// src/alfred.rs
+//! Converts generic SearchResult values into Alfred Script Filter items
+//! and outputs them as JSON.
+//!
+//! Defines:
+//! - AlfredItem, Icon, Mods, ModifierAction, Text, AlfredResponse
+//! - `From<&SearchResult> for AlfredItem`
+//! - `output_results` to serialize and print the Alfred JSON response.
+
 use crate::search::SearchResult;
 use crate::utils;
 use serde::Serialize;

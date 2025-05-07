@@ -1,4 +1,11 @@
-// src/search.rs
+//! Core search‐result types and matching utilities.
+//!
+//! Defines:
+//! - `SearchResult` struct and `ResultSource` enum
+//! - `deduplicate` to remove duplicate URLs (preferring bookmarks)
+//! - `matches` supporting AND (`&`) / OR (`|`) / substring
+//! - `filter_results` to apply the query to title, url, or subtitle.
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 

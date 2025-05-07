@@ -1,4 +1,13 @@
-// src/bookmarks.rs
+//! Searches bookmarks across all enabled browsers.
+//!
+//! Provides:
+//! - `search(query: &str)` entry point
+//! - `search_chrome_bookmarks` / `search_safari_bookmarks`
+//! - Recursive extractors (`extract_chrome_bookmarks`,
+//!   `extract_safari_bookmarks`)
+//! - Uses serde_json and plist for parsing, rayon for parallelism,
+//!   and filter_results to match the query.
+
 use crate::browser::{get_available_browsers, Browser};
 use crate::search::{filter_results, ResultSource, SearchResult};
 use plist::Value as PlistValue;

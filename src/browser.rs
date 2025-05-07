@@ -1,4 +1,11 @@
-// src/browser.rs
+//! Discovers installed browsers and their history/bookmarks file paths.
+//!
+//! Defines:
+//! - `Browser` enum with variants for supported browsers
+//! - `BrowserPaths` struct holding optional history/bookmarks paths
+//! - `get_available_browsers` that reads HOME and environment flags
+//!   to return only enabled & existing browser paths.
+
 use dirs::home_dir;
 use std::collections::HashMap;
 use std::path::PathBuf;

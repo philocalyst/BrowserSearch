@@ -1,4 +1,10 @@
-// src/db.rs
+//! Helpers for safely querying SQLite browser databases.
+//!
+//! - `create_temp_db_copy` to make a read-only tempfile copy,
+//!   verifying integrity before use.
+//! - `query_chrome_history` and `query_safari_history` wrappers to
+//!   prepare, execute, and map query results.
+
 use rusqlite::{Connection, Result as SqliteResult, Row};
 use std::error::Error;
 use std::fs;

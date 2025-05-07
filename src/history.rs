@@ -1,4 +1,10 @@
-// src/history.rs
+//! Searches browser history across enabled browsers.
+//!
+//! - `search(query: &str)` coordinates loading cached results,
+//!   reading each browser’s history via `get_chrome_history` /
+//!   `get_safari_history`, merging, deduplicating, sorting, and
+//!   limiting to MAX_RESULTS.
+//! - After gathering, it calls `fetch_favicons` to populate icons.
 use crate::browser::{get_available_browsers, Browser};
 use crate::cache::get_cached_results;
 use crate::db::{create_temp_db_copy, query_chrome_history, query_safari_history};

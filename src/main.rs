@@ -1,4 +1,10 @@
-// src/main.rs
+//! Entry point for the browser‐search Alfred workflow.
+//!
+//! - Parses CLI args: command (`bookmarks`/`history`/default) and query.
+//! - Dispatches to bookmarks::search, history::search, or both.
+//! - Deduplicates combined results, then calls alfred::output_results.
+//! - Uses env_logger and prints execution time to debug.
+
 use std::env;
 use std::error::Error;
 use std::time::Instant;
@@ -23,7 +29,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let query = args.get(2).map(|s| s.as_str()).unwrap_or("");
 
     // produce one combined Vec<SearchResult>
-    let mut results = match command {
+    let results = match command {
         "bookmarks" => bookmarks::search(query)?,
         "history" => history::search(query)?,
         _ => {
