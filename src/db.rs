@@ -141,3 +141,18 @@ where
 
     Ok(results)
 }
+
+pub fn query_firefox_bookmarks<F, T>(
+    conn: &Connection,
+    sql: &str,
+    mut row_mapper: F,
+) -> SqliteResult<Vec<T>>
+where
+    F: FnMut(&Row<'_>) -> SqliteResult<T>,
+{
+    let mut stmt = conn.prepare(sql)?;
+    let rows = stmt
+        .query_map([], |row| row_mapper(row))?
+        .collect::<SqliteResult<Vec<_>>>()?;
+    Ok(rows)
+}

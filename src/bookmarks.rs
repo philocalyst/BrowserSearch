@@ -9,6 +9,7 @@
 //!   and filter_results to match the query.
 
 use crate::browser::{get_available_browsers, Browser};
+use crate::db::{create_temp_db_copy, query_firefox_bookmarks};
 use crate::search::{filter_results, ResultSource, SearchResult};
 use plist::Value as PlistValue;
 use rayon::prelude::*;
@@ -20,6 +21,7 @@ use std::path::Path;
 
 /// Search bookmarks across all enabled browsers
 pub fn search(query: &str) -> Result<Vec<SearchResult>, Box<dyn Error>> {
+    log::trace!("Beginning bookmarks search");
     let browsers = get_available_browsers();
 
     // Perform searches in parallel using rayon
@@ -29,6 +31,7 @@ pub fn search(query: &str) -> Result<Vec<SearchResult>, Box<dyn Error>> {
             if let Some(bookmarks_path) = &paths.bookmarks {
                 let result = match browser {
                     Browser::Safari => search_safari_bookmarks(bookmarks_path, query),
+                    Browser::Firefox => search_firefox_bookmarks(bookmarks_path, query),
                     _ => search_chrome_bookmarks(bookmarks_path, query),
                 };
 
@@ -181,4 +184,41 @@ fn extract_safari_bookmarks(value: &PlistValue, results: &mut Vec<SearchResult>)
         }
         _ => {}
     }
+}
+
+/// Firefox bookmarks (SQLite)
+fn search_firefox_bookmarks(
+    bookmark_path: &Path,
+    query: &str,
+) -> Result<Vec<SearchResult>, Box<dyn Error>> {
+    // Copy the locked db for easy access
+    let (_tmp, conn) = create_temp_db_copy(bookmark_path, None, None)?;
+
+    // grab every “real” bookmark (type=1) and where the data isn't sparse.
+    let sql = r#"
+        SELECT b.title, p.url
+          FROM moz_bookmarks AS b
+          JOIN moz_places   AS p ON b.fk = p.id
+         WHERE b.type = 1
+           AND p.url   IS NOT NULL
+           AND b.title IS NOT NULL
+    "#;
+
+    // Query the firefox bookmarks
+    let raw: Vec<SearchResult> = query_firefox_bookmarks(&conn, sql, |row| {
+        let title: String = row.get(0)?;
+        let url: String = row.get(1)?;
+        Ok(SearchResult {
+            title: title.clone(),
+            url: url.clone(),
+            subtitle: url,
+            favicon: None,
+            source: ResultSource::Bookmark,
+            visit_count: None,
+            last_visit: None,
+        })
+    })?;
+
+    // finally apply your existing filter_results
+    Ok(raw)
 }
