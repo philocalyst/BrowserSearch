@@ -30,6 +30,33 @@ pub enum Browser {
 }
 
 impl Browser {
+    /// Returns true if this browser is based on Chromium.
+    pub fn is_chrome_like(&self) -> bool {
+        matches!(
+            self,
+            Browser::Chrome
+                | Browser::ChromeBeta
+                | Browser::Brave
+                | Browser::BraveBeta
+                | Browser::Edge
+                | Browser::Opera
+                | Browser::Vivaldi
+                | Browser::Arc
+                | Browser::Chromium
+                | Browser::Sidekick
+        )
+    }
+
+    /// Returns true if this browser is based on Firefox.
+    pub fn is_firefox_like(&self) -> bool {
+        matches!(self, Browser::Firefox | Browser::Zen)
+    }
+
+    /// Returns true if this browser is based on WebKit.
+    pub fn is_safari_like(&self) -> bool {
+        matches!(self, Browser::Safari)
+    }
+
     /// Get the display name of the browser
     pub fn name(&self) -> &'static str {
         match self {
@@ -163,7 +190,8 @@ pub fn get_available_browsers() -> HashMap<Browser, BrowserPaths> {
         let mut history = home.join(history_path);
         let mut bookmarks = home.join(bookmarks_path);
 
-        if browser == Browser::Firefox {
+        // If it's a variant of firefox.
+        if browser.is_firefox_like() {
             // Scan each profile directory for places.sqlite
             if let Ok(entries) = fs::read_dir(&history) {
                 // Get stored profiles
