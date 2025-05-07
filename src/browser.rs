@@ -8,6 +8,7 @@
 
 use dirs::home_dir;
 use std::collections::HashMap;
+use std::fs;
 use std::path::PathBuf;
 
 /// Supported browser types
@@ -109,8 +110,8 @@ pub fn get_available_browsers() -> HashMap<Browser, BrowserPaths> {
         ),
         (
             Browser::Firefox,
-            "Library/Application Support/Firefox/Profiles/default/places.sqlite",
-            "Library/Application Support/Firefox/Profiles/default/places.sqlite",
+            "Library/Application Support/Firefox/Profiles",
+            "Library/Application Support/Firefox/Profiles",
         ),
         (
             Browser::Edge,
@@ -149,8 +150,30 @@ pub fn get_available_browsers() -> HashMap<Browser, BrowserPaths> {
             continue;
         }
 
-        let history = home.join(history_path);
-        let bookmarks = home.join(bookmarks_path);
+        // Join the home directory as paths are relative.
+        // Mutable for Firefox support later.
+        let mut history = home.join(history_path);
+        let mut bookmarks = home.join(bookmarks_path);
+
+        if browser == Browser::Firefox {
+            // Scan each profile directory for places.sqlite
+            if let Ok(entries) = fs::read_dir(&history) {
+                // Get stored profiles
+                for entry in entries.flatten() {
+                    let profile_dir = entry.path();
+                    if profile_dir.is_dir() {
+                        // Scan for a places.sqlite in each
+                        let db = profile_dir.join("places.sqlite");
+                        if db.is_file() {
+                            // history _and_ bookmarks live in the same DB
+                            history.push(db.clone());
+                            bookmarks.push(db);
+                            break; // Only support for one entry for now
+                        }
+                    }
+                }
+            }
+        }
 
         browsers.insert(
             browser,

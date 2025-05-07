@@ -88,7 +88,7 @@ pub fn search(query: &str) -> Result<Vec<SearchResult>, Box<dyn Error>> {
 }
 
 /// Get Chrome-based browser history
-fn get_chrome_history(db_path: &std::path::Path) -> Result<Vec<SearchResult>, Box<dyn Error>> {
+fn get_chrome_history(db_path: &Path) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     // Create a temporary copy of the database
     let (_temp_file, conn) = create_temp_db_copy(db_path, None, None)?;
 
