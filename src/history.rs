@@ -14,6 +14,7 @@ use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
 use rayon::prelude::*;
 use std::collections::HashSet;
 use std::error::Error;
+use std::path::Path;
 
 /// Searches browser history for the given query
 pub fn search(query: &str) -> Result<Vec<SearchResult>, Box<dyn Error>> {
@@ -32,6 +33,7 @@ pub fn search(query: &str) -> Result<Vec<SearchResult>, Box<dyn Error>> {
             if let Some(history_path) = &paths.history {
                 let result = match browser {
                     Browser::Safari => get_safari_history(history_path),
+                    Browser::Firefox => get_firefox_history(history_path),
                     _ => get_chrome_history(history_path),
                 };
 
@@ -142,7 +144,7 @@ fn get_chrome_history(db_path: &std::path::Path) -> Result<Vec<SearchResult>, Bo
 }
 
 /// Get Safari history
-fn get_safari_history(db_path: &std::path::Path) -> Result<Vec<SearchResult>, Box<dyn Error>> {
+fn get_safari_history(db_path: &Path) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     // Create a temporary copy of the database
     let (_temp_file, conn) = create_temp_db_copy(db_path, None, None)?;
 
@@ -173,6 +175,53 @@ fn get_safari_history(db_path: &std::path::Path) -> Result<Vec<SearchResult>, Bo
             title,
             url,
             subtitle: format!("Last visit: {} (Visits: {})", formatted_date, visit_count),
+            favicon: None,
+            source: ResultSource::History,
+            visit_count: Some(visit_count as u32),
+            last_visit: Some(last_visit),
+        })
+    })?;
+
+    Ok(results)
+}
+
+/// Get Firefox history
+pub fn get_firefox_history(db_path: &Path) -> Result<Vec<SearchResult>, Box<dyn Error>> {
+    // copy locked DB out of the way
+    let (_tmpfile, conn) = create_temp_db_copy(db_path, None, None)?;
+
+    let sql = r#"
+        SELECT
+            moz_places.url,
+            moz_places.title,
+            moz_places.visit_count,
+            (moz_historyvisits.visit_date/1000000) AS last_visit_time
+        FROM moz_places
+        LEFT JOIN moz_historyvisits
+            ON moz_places.id = moz_historyvisits.place_id
+        WHERE
+            moz_places.url   IS NOT NULL
+            AND moz_places.title IS NOT NULL
+            AND moz_places.url   != ''
+        ORDER BY last_visit_time DESC
+    "#;
+
+    // Reusing the chrome opperation because of the overlap
+    let results = query_chrome_history(&conn, sql, |row| {
+        let url: String = row.get(0)?;
+        let title: String = row.get(1)?;
+        let visit_count: i32 = row.get(2)?;
+        let last_visit: i64 = row.get(3)?;
+
+        // format date by user‐configured strftime
+        let fmt = std::env::var("date_format").unwrap_or_else(|_| "%d.%m.%Y".into());
+        let dt = Utc.timestamp_opt(last_visit, 0).unwrap();
+        let date = dt.format(&fmt).to_string();
+
+        Ok(SearchResult {
+            title,
+            url,
+            subtitle: format!("Last visit: {} (Visits: {})", date, visit_count),
             favicon: None,
             source: ResultSource::History,
             visit_count: Some(visit_count as u32),
