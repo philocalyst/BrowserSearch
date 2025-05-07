@@ -65,8 +65,13 @@ pub fn search(query: &str) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     // Sort by last visit (most recent first)
     all_results.sort_by(|a, b| b.last_visit.unwrap_or(0).cmp(&a.last_visit.unwrap_or(0)));
 
-    // Limit to 30 results
-    let mut limited_results: Vec<SearchResult> = all_results.into_iter().take(30).collect();
+    let result_count: usize = std::env::var("MAX_RESULTS")
+        .unwrap_or("30".to_string())
+        .parse()?;
+
+    // Limited
+    let mut limited_results: Vec<SearchResult> =
+        all_results.into_iter().take(result_count).collect();
 
     // After all processing is finished, download the favicons.
     fetch_favicons(&mut limited_results)?;
@@ -77,7 +82,7 @@ pub fn search(query: &str) -> Result<Vec<SearchResult>, Box<dyn Error>> {
 /// Get Chrome-based browser history
 fn get_chrome_history(db_path: &std::path::Path) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     // Create a temporary copy of the database
-    let (_temp_file, conn) = create_temp_db_copy(db_path)?;
+    let (_temp_file, conn) = create_temp_db_copy(db_path, None, None)?;
 
     // Get the ignored domains from environment
     let ignored_domains: Vec<String> = std::env::var("ignored_domains")
@@ -133,7 +138,7 @@ fn get_chrome_history(db_path: &std::path::Path) -> Result<Vec<SearchResult>, Bo
 /// Get Safari history
 fn get_safari_history(db_path: &std::path::Path) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     // Create a temporary copy of the database
-    let (_temp_file, conn) = create_temp_db_copy(db_path)?;
+    let (_temp_file, conn) = create_temp_db_copy(db_path, None, None)?;
 
     // Query the database
     let sql = "SELECT history_items.url, history_visits.title, history_items.visit_count,
