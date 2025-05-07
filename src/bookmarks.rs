@@ -8,7 +8,7 @@
 //! - Uses serde_json and plist for parsing, rayon for parallelism,
 //!   and filter_results to match the query.
 
-use crate::browser::{get_available_browsers, Browser};
+use crate::browser::get_available_browsers;
 use crate::db::{create_temp_db_copy, query_firefox_bookmarks};
 use crate::search::{filter_results, ResultSource, SearchResult};
 use plist::Value as PlistValue;
@@ -30,9 +30,10 @@ pub fn search(query: &str) -> Result<Vec<SearchResult>, Box<dyn Error>> {
         .filter_map(|(browser, paths)| {
             if let Some(bookmarks_path) = &paths.bookmarks {
                 let result = match browser {
-                    Browser::Safari => search_safari_bookmarks(bookmarks_path, query),
-                    Browser::Firefox => search_firefox_bookmarks(bookmarks_path, query),
-                    _ => search_chrome_bookmarks(bookmarks_path, query),
+                    b if b.is_safari_like() => search_safari_bookmarks(&bookmarks_path, query),
+                    b if b.is_firefox_like() => search_firefox_bookmarks(&bookmarks_path, query),
+                    b if b.is_chrome_like() => search_chrome_bookmarks(&bookmarks_path, query),
+                    _ => unreachable!("unsupported browser: {:?}", browser),
                 };
 
                 match result {

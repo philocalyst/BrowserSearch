@@ -32,9 +32,10 @@ pub fn search(query: &str) -> Result<Vec<SearchResult>, Box<dyn Error>> {
         .filter_map(|(browser, paths)| {
             if let Some(history_path) = &paths.history {
                 let result = match browser {
-                    Browser::Safari => get_safari_history(history_path),
-                    Browser::Firefox => get_firefox_history(history_path),
-                    _ => get_chrome_history(history_path),
+                    b if b.is_safari_like() => get_safari_history(history_path),
+                    b if b.is_firefox_like() => get_firefox_history(history_path),
+                    b if b.is_chrome_like() => get_chrome_history(history_path),
+                    _ => unreachable!("unsupported browser: {:?}", browser),
                 };
 
                 match result {
