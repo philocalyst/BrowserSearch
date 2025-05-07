@@ -9,7 +9,6 @@ use std::env;
 use std::error::Error;
 use std::time::Instant;
 
-use utils::fetch_favicons;
 
 mod alfred;
 mod bookmarks;

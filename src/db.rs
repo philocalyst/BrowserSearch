@@ -33,16 +33,14 @@ pub fn create_temp_db_copy(
         let mut existing_temp_path = None;
 
         // Iterate through canidates
-        for entry in entries {
-            if let Ok(entry) = entry {
-                let file_name = entry.file_name();
-                let file_name_str = file_name.to_string_lossy();
+        for entry in entries.flatten() {
+            let file_name = entry.file_name();
+            let file_name_str = file_name.to_string_lossy();
 
-                if file_name_str.starts_with(prefix) && entry.path().is_file() {
-                    // Found a match!
-                    existing_temp_path = Some(entry.path());
-                    break;
-                }
+            if file_name_str.starts_with(prefix) && entry.path().is_file() {
+                // Found a match!
+                existing_temp_path = Some(entry.path());
+                break;
             }
         }
 

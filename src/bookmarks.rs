@@ -30,9 +30,9 @@ pub fn search(query: &str) -> Result<Vec<SearchResult>, Box<dyn Error>> {
         .filter_map(|(browser, paths)| {
             if let Some(bookmarks_path) = &paths.bookmarks {
                 let result = match browser {
-                    b if b.is_safari_like() => search_safari_bookmarks(&bookmarks_path, query),
-                    b if b.is_firefox_like() => search_firefox_bookmarks(&bookmarks_path, query),
-                    b if b.is_chrome_like() => search_chrome_bookmarks(&bookmarks_path, query),
+                    b if b.is_safari_like() => search_safari_bookmarks(bookmarks_path, query),
+                    b if b.is_firefox_like() => search_firefox_bookmarks(bookmarks_path),
+                    b if b.is_chrome_like() => search_chrome_bookmarks(bookmarks_path, query),
                     _ => unreachable!("unsupported browser: {:?}", browser),
                 };
 
@@ -188,10 +188,7 @@ fn extract_safari_bookmarks(value: &PlistValue, results: &mut Vec<SearchResult>)
 }
 
 /// Firefox bookmarks (SQLite)
-fn search_firefox_bookmarks(
-    bookmark_path: &Path,
-    query: &str,
-) -> Result<Vec<SearchResult>, Box<dyn Error>> {
+fn search_firefox_bookmarks(bookmark_path: &Path) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     // Copy the locked db for easy access
     let (_tmp, conn) = create_temp_db_copy(bookmark_path, None, None)?;
 

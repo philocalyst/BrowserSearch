@@ -5,12 +5,12 @@
 //!   `get_safari_history`, merging, deduplicating, sorting, and
 //!   limiting to MAX_RESULTS.
 //! - After gathering, it calls `fetch_favicons` to populate icons.
-use crate::browser::{get_available_browsers, Browser};
+use crate::browser::get_available_browsers;
 use crate::cache::get_cached_results;
 use crate::db::{create_temp_db_copy, query_chrome_history, query_safari_history};
 use crate::search::{filter_results, ResultSource, SearchResult};
 use crate::utils::fetch_favicons;
-use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
+use chrono::{TimeZone, Utc};
 use rayon::prelude::*;
 use std::collections::HashSet;
 use std::error::Error;
@@ -21,11 +21,7 @@ pub fn search(query: &str) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     let browsers = get_available_browsers();
 
     // Get cached results if available
-    let cached_results = match get_cached_results("history") {
-        Ok(results) => results,
-        Err(_) => Vec::new(),
-    };
-
+    let cached_results = get_cached_results("history").unwrap_or_default();
     // Get browser histories
     let browser_histories: Vec<Vec<SearchResult>> = browsers
         .par_iter()

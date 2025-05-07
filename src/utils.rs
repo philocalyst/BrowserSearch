@@ -1,11 +1,9 @@
 use crate::search::SearchResult;
-use dirs;
 use rayon::prelude::*;
 use reqwest::blocking::Client;
 use std::error::Error;
 use std::fs;
 use std::io::Write;
-use std::path::PathBuf;
 use url::Url;
 
 /// Read an env var as bool (“1” or “true” = true).
@@ -15,10 +13,10 @@ pub fn get_env_bool(name: &str) -> bool {
         .unwrap_or(false)
 }
 
-/// Read an env var or return `default`.
-pub fn get_env_with_default(name: &str, default: &str) -> String {
-    std::env::var(name).unwrap_or_else(|_| default.to_string())
-}
+// / Read an env var or return `default`.
+// pub fn get_env_with_default(name: &str, default: &str) -> String {
+//     std::env::var(name).unwrap_or_else(|_| default.to_string())
+// }
 
 /// Extract the domain (host) from a URL.
 pub fn get_domain(url_str: &str) -> Option<String> {
