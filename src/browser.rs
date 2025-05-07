@@ -21,6 +21,7 @@ pub enum Browser {
     Safari,
     Firefox,
     Edge,
+    Zen,
     Opera,
     Vivaldi,
     Arc,
@@ -32,6 +33,7 @@ impl Browser {
     /// Get the display name of the browser
     pub fn name(&self) -> &'static str {
         match self {
+            Browser::Zen => "Zen",
             Browser::Chrome => "Google Chrome",
             Browser::ChromeBeta => "Google Chrome Beta",
             Browser::Brave => "Brave",
@@ -51,6 +53,7 @@ impl Browser {
     pub fn env_var(&self) -> &'static str {
         match self {
             Browser::Chrome => "chrome",
+            Browser::Zen => "zen",
             Browser::ChromeBeta => "chrome_beta",
             Browser::Brave => "brave",
             Browser::BraveBeta => "brave_beta",
@@ -112,6 +115,11 @@ pub fn get_available_browsers() -> HashMap<Browser, BrowserPaths> {
             Browser::Firefox,
             "Library/Application Support/Firefox/Profiles",
             "Library/Application Support/Firefox/Profiles",
+        ),
+        (
+            Browser::Zen,
+            "Library/Application Support/zen/Profiles",
+            "Library/Application Support/zen/Profiles",
         ),
         (
             Browser::Edge,
