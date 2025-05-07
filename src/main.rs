@@ -20,9 +20,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let args: Vec<String> = env::args().collect();
     let command = args.get(1).map(|s| s.as_str()).unwrap_or("");
-    println!("command {}", command);
     let query = args.get(2).map(|s| s.as_str()).unwrap_or("");
-    println!("query {}", query);
 
     // produce one combined Vec<SearchResult>
     let mut results = match command {

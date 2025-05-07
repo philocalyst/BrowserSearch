@@ -50,7 +50,6 @@ pub fn fetch_favicons(results: &mut [SearchResult]) -> Result<(), Box<dyn Error>
                     domain
                 );
                 if let Ok(resp) = client.get(&url).send() {
-                    println!("OKOK");
                     if let Ok(bytes) = resp.bytes() {
                         if !bytes.is_empty() {
                             if let Ok(mut f) = fs::File::create(&png) {

@@ -12,7 +12,6 @@ use std::error::Error;
 /// Searches browser history for the given query
 pub fn search(query: &str) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     let browsers = get_available_browsers();
-    println!("{:?}", browsers);
 
     // Get cached results if available
     let cached_results = match get_cached_results("history") {
@@ -148,7 +147,6 @@ fn get_safari_history(db_path: &std::path::Path) -> Result<Vec<SearchResult>, Bo
          ORDER BY visit_count DESC";
 
     let results = query_safari_history(&conn, sql, |row| {
-        println!("HEYYY{:?}", row);
         let url: String = row.get(0)?;
         let title: String = row.get(1)?;
         let visit_count: i32 = row.get(2)?;
