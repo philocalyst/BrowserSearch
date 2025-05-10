@@ -1,21 +1,19 @@
-function run(argv) {
-  // Parse the arguments from the Rust call
-  const browser = argv[0];
-  const query = argv[1];
-  
-  const { windowIndex, tabIndex } = getWindowAndTabIndex(query);
-  const { browserApp, browserWindow, maybeSystemWindow } = 
-    getBrowserAndWindows(browser, windowIndex);
+// Parse the arguments from the Rust call
+const browser = $params[0];
+const query = $params[1];
 
-  activateTab(browserApp, browserWindow, maybeSystemWindow, tabIndex);
-  
-  return JSON.stringify({
-    status: "success",
-    browser: browser,
-    windowIndex: windowIndex,
-    tabIndex: tabIndex
-  });
-}
+const { windowIndex, tabIndex } = getWindowAndTabIndex(query);
+const { browserApp, browserWindow, maybeSystemWindow } = 
+  getBrowserAndWindows(browser, windowIndex);
+
+activateTab(browserApp, browserWindow, maybeSystemWindow, tabIndex);
+
+return JSON.stringify({
+  status: "success",
+  browser: browser,
+  windowIndex: windowIndex,
+  tabIndex: tabIndex
+});
 
 function getWindowAndTabIndex(query) {
   const [windowIndex, tabIndex] = query.split(",").map(x => parseInt(x));
