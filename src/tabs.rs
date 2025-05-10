@@ -171,3 +171,81 @@ pub fn focus_tab(browser: &Browser, tab: &Tab) -> Result<(), TabError> {
 
     Ok(())
 }
+
+pub fn search_tabs(browser: &Browser, query: &str) -> Result<Vec<Tab>, TabError> {
+    let tabs = list_tabs(browser)?;
+
+    // Simple case-insensitive filtering
+    let query = query.to_lowercase();
+    let matching_tabs = tabs
+        .into_iter()
+        .filter(|tab| {
+            tab.title.to_lowercase().contains(&query) || tab.url.to_lowercase().contains(&query)
+        })
+        .collect();
+
+    Ok(matching_tabs)
+}
+
+const LIST_TABS_JS: &str = r#"
+ObjC.import('stdlib');
+var browser = $params;
+if (!Application(browser).running()) {
+  return JSON.stringify({
+    items: [
+      {
+        title: browser + ' is not running',
+        subtitle: 'Press enter to launch ' + browser,
+        url: '',
+        windowIndex: 0,
+        tabIndex: 0,
+        arg: browser
+      }
+    ]
+  });
+}
+
+var app = Application(browser);
+app.includeStandardAdditions = true;
+var items = [];
+
+if (browser === 'Arc') {
+  for (var w = 0; w < app.windows.length; w++) {
+    var spaces = app.windows[w].spaces;
+    for (var s = 0; s < spaces.length; s++) {
+      var tabs = spaces[s].tabs;
+      for (var t = 0; t < tabs.length; t++) {
+        var tab = tabs[t];
+        items.push({
+          title: tab.title()   || '',
+          url:   tab.url()     || '',
+          subtitle: tab.url()  || '',
+          windowIndex: w,
+          tabIndex: t,
+          spaceIndex: s,
+          arg: JSON.stringify([w, t, s])
+        });
+      }
+    }
+  }
+} else {
+  var titles = (browser === 'Safari'
+    ? app.windows.tabs.name()
+    : app.windows.tabs.title());
+  var urls = app.windows.tabs.url();
+  for (var w = 0; w < titles.length; w++) {
+    for (var t = 0; t < titles[w].length; t++) {
+      items.push({
+        title: titles[w][t] || '',
+        url:   urls[w][t]   || '',
+        subtitle: urls[w][t]|| '',
+        windowIndex: w,
+        tabIndex: t,
+        arg: JSON.stringify([w, t])
+      });
+    }
+  }
+}
+
+return JSON.stringify({ items: items });
+"#;
