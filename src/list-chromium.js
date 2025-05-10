@@ -2,7 +2,7 @@
   var app     = Application(browser);
   app.includeStandardAdditions = true;
 
-  // 3) otherwise, walk every window → tab
+  // Walk every window → tab
   var items = [];
   var windows   = app.windows;
   for (var window_index = 0; window_index < windows.length; window_index++) {
@@ -26,5 +26,4 @@
     }
   }
 
-  // 4) print exactly one JSON blob
   return JSON.stringify({ items: items });
