@@ -1,5 +1,17 @@
-/// Focus a tab in standard browsers (Chrome, Firefox, etc.)
-pub fn focus_tab(browser: &str, tab: &Tab) -> Result<(), TabError> {
+//! Browser tab management functionality.
+//!
+//! Provides functionality to:
+//! - List tabs from various browsers (Chrome/Chromium, Safari, Firefox, Arc)
+//! - Focus on specific tabs in those browsers
+//! - Convert between different browser-specific tab formats
+
+use osascript::JavaScript;
+use serde::{Deserialize, Serialize};
+use std::error::Error as StdError;
+use std::fmt;
+
+use crate::browser::Browser;
+
     // Choose the appropriate script based on browser type
     let script_content = if browser.contains("Arc") {
         include_str!("./focus-arc.js")
@@ -31,4 +43,3 @@ pub fn focus_tab(browser: &str, tab: &Tab) -> Result<(), TabError> {
 
     Ok(())
 }
-
