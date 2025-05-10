@@ -115,32 +115,57 @@ struct TabItem {
     _match: Option<String>,
 }
 
+/// List tabs from standard browsers (Chrome, Firefox, etc.)
+fn list_tabs(browser: &Browser) -> Result<Vec<Tab>, TabError> {
+    let browser = browser.name(); // Shadow into name for the script
+    let script = JavaScript::new(LIST_TABS_JS);
+
+    let response: String = script.execute_with_params(browser)?;
+    let tabs_response: TabList = serde_json::from_str(&response)?;
+
+    // Check if browser is not running
+    if tabs_response.items.len() == 1 && tabs_response.items[0].title.contains("is not running") {
+        return Err(TabError::BrowserNotRunning(browser.to_string()));
+    }
+
+    // Convert a tab list to a series of tabs
+    let tabs = tabs_response
+        .items
+        .into_iter()
+        .map(|item| Tab {
+            title: item.title,
+            url: item.url,
+            subtitle: item.subtitle,
+            window_index: item.window_index,
+            tab_index: item.tab_index,
+            space_index: item.space_index,
+            arg: item.arg,
+        })
+        .collect();
+
+    Ok(tabs)
+}
+
+pub fn focus_tab(browser: &Browser, tab: &Tab) -> Result<(), TabError> {
     // Choose the appropriate script based on browser type
-    let script_content = if browser.contains("Arc") {
-        include_str!("./focus-arc.js")
-    } else if browser == "Safari" {
-        include_str!("./focus-webkit.js")
-    } else {
-        include_str!("./focus-chromium.js")
+    let script_content = match browser {
+        Browser::Arc => include_str!("./focus-arc.js"),
+        Browser::Safari => include_str!("./focus-arc.js"),
+        _ => include_str!("./focus-chromium.js"),
     };
 
     let script = JavaScript::new(script_content);
 
     // Build the query string
-    let query = if browser.contains("Arc") {
-        // Arc format: windowIndex,tabIndex (spaceIndex is handled in script)
-        format!("{},{}", tab.window_index, tab.tab_index)
-    } else if browser == "Safari" {
-        // For Safari with a URL to match
-        format!("{},{}", tab.window_index, tab.url)
-    } else {
-        // Standard format: windowIndex,tabIndex
-        format!("{},{}", tab.window_index, tab.tab_index)
+    let query = match browser {
+        Browser::Arc => format!("{},{}", tab.window_index, tab.tab_index),
+        Browser::Safari => format!("{},{}", tab.window_index, tab.url),
+        _ => format!("{},{}", tab.window_index, tab.tab_index),
     };
 
     // Execute with browser name and query as parameters
     let response: String =
-        script.execute_with_params::<_, String>(vec![browser.to_string(), query])?;
+        script.execute_with_params::<_, String>(vec![browser.name(), query.as_str()])?;
 
     println!("{response}");
 
