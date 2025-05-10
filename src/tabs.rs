@@ -81,6 +81,40 @@ pub struct Tab {
     pub arg: String,
 }
 
+/// Response structure from the tab lists
+#[derive(Debug, Serialize, Deserialize)]
+struct TabList {
+    items: Vec<TabItem>,
+}
+
+/// Individual tab item information from script response
+#[derive(Debug, Serialize, Deserialize)]
+struct TabItem {
+    title: String,
+    url: String,
+    subtitle: String,
+    #[serde(rename = "windowIndex")]
+    window_index: usize,
+    #[serde(rename = "tabIndex")]
+    tab_index: usize,
+    #[serde(
+        rename = "spaceIndex",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    space_index: Option<usize>,
+    arg: String,
+    // Optional fields that may be present but aren't needed directly
+    #[serde(
+        rename = "quicklookurl",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    _quicklookurl: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    _match: Option<String>,
+}
+
     // Choose the appropriate script based on browser type
     let script_content = if browser.contains("Arc") {
         include_str!("./focus-arc.js")
