@@ -117,15 +117,21 @@ struct TabItem {
 
 /// List tabs from standard browsers (Chrome, Firefox, etc.)
 fn list_tabs(browser: &Browser) -> Result<Vec<Tab>, TabError> {
-    let browser = browser.name(); // Shadow into name for the script
-    let script = JavaScript::new(LIST_TABS_JS);
+    let script_content = match browser {
+        Browser::Arc => include_str!("./list-arc.js"),
+        Browser::Safari => include_str!("./list-webkit.js"),
+        Browser::Zen => include_str!("./list-gecko.js"),
+        _ => include_str!("./list-chromium.js"),
+    };
 
-    let response: String = script.execute_with_params(browser)?;
+    let script = JavaScript::new(script_content);
+
+    let response: String = script.execute_with_params(browser.name())?;
     let tabs_response: TabList = serde_json::from_str(&response)?;
 
     // Check if browser is not running
     if tabs_response.items.len() == 1 && tabs_response.items[0].title.contains("is not running") {
-        return Err(TabError::BrowserNotRunning(browser.to_string()));
+        return Err(TabError::BrowserNotRunning(browser.name().to_string()));
     }
 
     // Convert a tab list to a series of tabs
@@ -150,7 +156,7 @@ pub fn focus_tab(browser: &Browser, tab: &Tab) -> Result<(), TabError> {
     // Choose the appropriate script based on browser type
     let script_content = match browser {
         Browser::Arc => include_str!("./focus-arc.js"),
-        Browser::Safari => include_str!("./focus-arc.js"),
+        Browser::Safari => include_str!("./focus-webkit.js"),
         _ => include_str!("./focus-chromium.js"),
     };
 
@@ -175,8 +181,6 @@ pub fn focus_tab(browser: &Browser, tab: &Tab) -> Result<(), TabError> {
 pub fn search_tabs(browser: &Browser, query: &str) -> Result<Vec<Tab>, TabError> {
     let tabs = list_tabs(browser)?;
 
-    // Simple case-insensitive filtering
-    let query = query.to_lowercase();
     let matching_tabs = tabs
         .into_iter()
         .filter(|tab| {
