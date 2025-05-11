@@ -1,32 +1,47 @@
-var browser = $params
-
-var app    = Application(browser)
-app.includeStandardAdditions = true
-
-// Walk through each
-var items  = []
-var windows = app.windows;
-
-for (var window_index = 0; window_index < windows.length; window_index++) {
-
-  var window = windows[window_index]
-  var tabs = window.tabs || []; // Fallback if empty
-
-  for (var tab_index = 0; tab_index < tabs.length; tab_index++) {
-    var current_tab = tabs[tab_index];
-
-    var url   = current_tab.url()   || '';
-    let matchUrl = url.replace(/(^\w+:|^)\/\//, "");
-    let title = current_tab.name() || matchUrl;
-    items.push({
-      title:       title || '',
-      url:         url || '',
-      subtitle:    url || '',
-      windowIndex: window_index || '',
-      tabIndex:    tab_index || '',
-      arg:         JSON.stringify([window_index, tab_index])
-    })
+  let browser = $params;
+  if (!Application(browser).running()) {
+    return JSON.stringify({
+      items: [
+        {
+          title: `${browser} is not running`,
+          subtitle: `Press enter to launch ${browser}`,
+        },
+      ],
+    });
   }
-}
 
-JSON.stringify({ items })
+  let chrome = Application(browser);
+  chrome.includeStandardAdditions = true;
+  let windowCount = chrome.windows.length;
+  let tabsTitle = chrome.windows.tabs.name();
+  let tabsUrl = chrome.windows.tabs.url();
+  let tabsMap = {};
+
+  for (let window = 0; window < windowCount; window++) {
+    for (let tab = 0; tab < tabsTitle[window].length; tab++) {
+      let url = tabsUrl[window][tab] || "";
+      let matchUrl = url.replace(/(^\w+:|^)\/\//, "");
+      let title = tabsTitle[window][tab] || matchUrl;
+
+      tabsMap[url] = {
+        title,
+        url,
+        subtitle: url,
+        windowIndex: window,
+        tabIndex: tab,
+        quicklookurl: url,
+        arg: `${window},${url || title}`,
+        match: `${title} ${decodeURIComponent(matchUrl).replace(
+          /[^\w]/g,
+          " ",
+        )}`,
+      };
+    }
+  }
+
+  let items = Object.keys(tabsMap).reduce((acc, url) => {
+    acc.push(tabsMap[url]);
+    return acc;
+  }, []);
+
+  return JSON.stringify({ items });
