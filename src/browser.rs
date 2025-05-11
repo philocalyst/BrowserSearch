@@ -57,24 +57,24 @@ impl Browser {
         matches!(self, Browser::Safari)
     }
 
-    // / Get the display name of the browser
-    // pub fn name(&self) -> &'static str {
-    //     match self {
-    //         Browser::Zen => "Zen",
-    //         Browser::Chrome => "Google Chrome",
-    //         Browser::ChromeBeta => "Google Chrome Beta",
-    //         Browser::Brave => "Brave",
-    //         Browser::BraveBeta => "Brave Beta",
-    //         Browser::Safari => "Safari",
-    //         Browser::Firefox => "Firefox",
-    //         Browser::Edge => "Microsoft Edge",
-    //         Browser::Opera => "Opera",
-    //         Browser::Vivaldi => "Vivaldi",
-    //         Browser::Arc => "Arc",
-    //         Browser::Chromium => "Chromium",
-    //         Browser::Sidekick => "Sidekick",
-    //     }
-    // }
+    /// Get the display name of the browser
+    pub fn name(&self) -> &'static str {
+        match self {
+            Browser::Zen => "Zen",
+            Browser::Chrome => "Google Chrome",
+            Browser::ChromeBeta => "Google Chrome Beta",
+            Browser::Brave => "Brave",
+            Browser::BraveBeta => "Brave Beta",
+            Browser::Safari => "Safari",
+            Browser::Firefox => "Firefox",
+            Browser::Edge => "Microsoft Edge",
+            Browser::Opera => "Opera",
+            Browser::Vivaldi => "Vivaldi",
+            Browser::Arc => "Arc",
+            Browser::Chromium => "Chromium",
+            Browser::Sidekick => "Sidekick",
+        }
+    }
 
     /// Get the environment variable name used for configuration
     pub fn env_var(&self) -> &'static str {
