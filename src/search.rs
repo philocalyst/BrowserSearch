@@ -6,6 +6,7 @@
 //! - `matches` supporting AND (`&`) / OR (`|`) / substring
 //! - `filter_results` to apply the query to title, url, or subtitle.
 
+use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
@@ -18,7 +19,7 @@ pub struct SearchResult {
     pub favicon: Option<String>,
     pub source: ResultSource,
     pub visit_count: Option<u32>,
-    pub last_visit: Option<i64>,
+    pub last_visit: Option<Timestamp>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
