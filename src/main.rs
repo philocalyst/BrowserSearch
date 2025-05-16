@@ -9,6 +9,7 @@ use std::env;
 use std::error::Error;
 use std::time::Instant;
 
+use browser::Browser;
 
 mod alfred;
 mod bookmarks;
@@ -17,6 +18,7 @@ mod cache;
 mod db;
 mod history;
 mod search;
+mod tabs;
 mod utils;
 
 fn main() -> Result<(), Box<dyn Error>> {
