@@ -11,8 +11,9 @@ use crate::db::{create_temp_db_copy, query_chrome_history, query_safari_history}
 use crate::search::{filter_results, ResultSource, SearchResult};
 use crate::utils::fetch_favicons;
 use chrono::{TimeZone, Utc};
+use nucleo::{Matcher, Utf32Str};
 use rayon::prelude::*;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::path::Path;
 
@@ -74,14 +75,54 @@ pub fn search(query: &str) -> Result<Vec<SearchResult>, Box<dyn Error>> {
         .unwrap_or("30".to_string())
         .parse()?;
 
-    // Limited
-    let mut limited_results: Vec<SearchResult> =
-        all_results.into_iter().take(result_count).collect();
+    let config = nucleo::Config::DEFAULT;
 
-    // After all processing is finished, download the favicons.
-    fetch_favicons(&mut limited_results)?;
+    let mut matcher_instance = Matcher::new(config);
 
-    Ok(limited_results)
+    // |1| Pre-segment your query once:
+    let mut query_buf: Vec<char> = Vec::new();
+    let query_u32 = Utf32Str::new(query, &mut query_buf);
+
+    // |2| Make a buffer to reuse for every title
+    let mut title_buf: Vec<char> = Vec::new();
+
+    use std::collections::HashMap;
+
+    let limited_results: HashMap<u16, Vec<SearchResult>> = all_results
+        .into_iter()
+        .map(|item| {
+            title_buf.clear();
+            let title_u32 = Utf32Str::new(&item.title, &mut title_buf);
+            let score = matcher_instance
+                .fuzzy_match(title_u32, query_u32)
+                .unwrap_or(u16::MIN);
+            (score, item)
+        })
+        .take(result_count)
+        .fold(HashMap::new(), |mut acc, (score, item)| {
+            acc.entry(score).or_default().push(item);
+            acc
+        });
+
+    let mut final_results = Vec::new();
+    for score_level in limited_results {
+        // Ignore all results with a score equal to zero
+        if score_level.0 <= 0 {
+            continue;
+        }
+
+        // If there's only one entry for a score level, we can just add it to the final results
+        if score_level.1.len() == 1 {
+            final_results.push(score_level.1[0].clone());
+        } else {
+            // tie break
+        }
+    }
+
+    // After all processing is finished, download the relevant favicons.
+    fetch_favicons(&mut final_results)?;
+
+    Ok(final_results)
 }
 
 /// Get Chrome-based browser history
