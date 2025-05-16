@@ -11,6 +11,7 @@ use dirs::data_dir;
 use std::error::Error;
 use std::fs::{self, File};
 use std::io::Read;
+use std::io::Write;
 use std::path::PathBuf;
 
 /// Get the directory where cache files are stored
@@ -30,15 +31,15 @@ fn get_cache_file(cache_type: &str) -> Option<PathBuf> {
     Some(get_cache_dir()?.join(format!("{}.cache", cache_type)))
 }
 
-// / Save search results to cache
-// pub fn save_to_cache(cache_type: &str, results: &[SearchResult]) -> Result<(), Box<dyn Error>> {
-//     if let Some(cache_file) = get_cache_file(cache_type) {
-//         let encoded = bincode::serialize(results)?;
-//         let mut file = File::create(cache_file)?;
-//         file.write_all(&encoded)?;
-//     }
-//     Ok(())
-// }
+/// Save search results to cache
+pub fn save_to_cache(cache_type: &str, results: &[SearchResult]) -> Result<(), Box<dyn Error>> {
+    if let Some(cache_file) = get_cache_file(cache_type) {
+        let encoded = bincode::serialize(results)?;
+        let mut file = File::create(cache_file)?;
+        file.write_all(&encoded)?;
+    }
+    Ok(())
+}
 
 /// Get cached search results
 pub fn get_cached_results(cache_type: &str) -> Result<Vec<SearchResult>, Box<dyn Error>> {

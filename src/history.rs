@@ -21,8 +21,6 @@ use std::path::Path;
 pub fn search(query: &str) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     let browsers = get_available_browsers();
 
-    // Get cached results if available
-    let cached_results = get_cached_results("history").unwrap_or_default();
     // Get browser histories
     let browser_histories: Vec<Vec<SearchResult>> = browsers
         .par_iter()
@@ -51,13 +49,6 @@ pub fn search(query: &str) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     // Collect results
     let mut all_results = Vec::new();
     let mut seen_urls = HashSet::new();
-
-    // Add cached results first (if they match the query)
-    for result in filter_results(cached_results, query) {
-        if seen_urls.insert(result.url.clone()) {
-            all_results.push(result);
-        }
-    }
 
     // Add new results from browsers
     for results in browser_histories {
