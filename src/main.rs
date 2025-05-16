@@ -19,6 +19,7 @@ mod db;
 mod history;
 mod search;
 mod tabs;
+mod tie_break;
 mod utils;
 
 fn main() -> Result<(), Box<dyn Error>> {
