@@ -9,8 +9,10 @@ use crate::browser::get_available_browsers;
 use crate::cache::get_cached_results;
 use crate::db::{create_temp_db_copy, query_chrome_history, query_safari_history};
 use crate::search::{filter_results, ResultSource, SearchResult};
+use crate::tie_break::break_a_tie;
 use crate::utils::fetch_favicons;
-use chrono::{TimeZone, Utc};
+use chrono::format::strftime;
+use jiff::{fmt::strtime, tz::TimeZone, Timestamp};
 use nucleo::{Matcher, Utf32Str};
 use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
@@ -59,9 +61,6 @@ pub fn search(query: &str) -> Result<Vec<SearchResult>, Box<dyn Error>> {
         }
     }
 
-    // Sort by last visit (most recent first)
-    all_results.sort_by(|a, b| b.last_visit.unwrap_or(0).cmp(&a.last_visit.unwrap_or(0)));
-
     let result_count: usize = std::env::var("MAX_RESULTS")
         .unwrap_or("30".to_string())
         .parse()?;
@@ -82,31 +81,34 @@ pub fn search(query: &str) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     let limited_results: HashMap<u16, Vec<SearchResult>> = all_results
         .into_iter()
         .map(|item| {
-            title_buf.clear();
-            let title_u32 = Utf32Str::new(&item.title, &mut title_buf);
+            title_buf.clear(); // Clear any leftovers
+            let title_u32 = Utf32Str::new(&item.title, &mut title_buf); // Convert to utf32
             let score = matcher_instance
                 .fuzzy_match(title_u32, query_u32)
-                .unwrap_or(u16::MIN);
+                .unwrap_or(u16::MIN); // If no match is found, fallback to the smallest value of a u16 (0)
             (score, item)
         })
-        .take(result_count)
+        .take(result_count) // We take here because it's a local maximum, which means it reduces overhead while also maximizing results even if other components have no results to give.
         .fold(HashMap::new(), |mut acc, (score, item)| {
             acc.entry(score).or_default().push(item);
             acc
         });
 
-    let mut final_results = Vec::new();
+    let mut final_results: Vec<SearchResult> = Vec::new();
     for score_level in limited_results {
+        let score = score_level.0;
+        let items = score_level.1;
+
         // Ignore all results with a score equal to zero
-        if score_level.0 <= 0 {
+        if score <= 0 {
             continue;
         }
 
         // If there's only one entry for a score level, we can just add it to the final results
-        if score_level.1.len() == 1 {
-            final_results.push(score_level.1[0].clone());
+        if items.len() == 1 {
+            final_results.push(items.first().unwrap().clone());
         } else {
-            // tie break
+            final_results.extend(break_a_tie(items, &matcher_instance));
         }
     }
 
@@ -145,8 +147,11 @@ fn get_chrome_history(db_path: &Path) -> Result<Vec<SearchResult>, Box<dyn Error
 
         // Format date based on user preference
         let date_format = std::env::var("date_format").unwrap_or("%d.%m.%Y".to_string());
-        let dt = Utc.timestamp_opt(last_visit, 0).unwrap();
-        let formatted_date = dt.format(&date_format).to_string();
+        let dt = Timestamp::from_second(last_visit)
+            .expect("We know this is correct")
+            .in_tz("UTC")
+            .unwrap();
+        let formatted_date = strtime::format(&date_format, &dt).unwrap();
 
         Ok(SearchResult {
             title,
@@ -155,7 +160,9 @@ fn get_chrome_history(db_path: &Path) -> Result<Vec<SearchResult>, Box<dyn Error
             favicon: None,
             source: ResultSource::History,
             visit_count: Some(visit_count as u32),
-            last_visit: Some(last_visit),
+            last_visit: Some(
+                Timestamp::from_second(last_visit).expect("The timestamp should be correct"),
+            ),
         })
     })?;
 
@@ -197,8 +204,11 @@ fn get_safari_history(db_path: &Path) -> Result<Vec<SearchResult>, Box<dyn Error
 
         // Format date based on user preference
         let date_format = std::env::var("date_format").unwrap_or("%d.%m.%Y".to_string());
-        let dt = Utc.timestamp_opt(last_visit, 0).unwrap();
-        let formatted_date = dt.format(&date_format).to_string();
+        let dt = Timestamp::from_second(last_visit)
+            .expect("We know this is correct")
+            .in_tz("UTC")
+            .unwrap();
+        let formatted_date = strtime::format(&date_format, &dt).unwrap();
 
         Ok(SearchResult {
             title,
@@ -207,7 +217,9 @@ fn get_safari_history(db_path: &Path) -> Result<Vec<SearchResult>, Box<dyn Error
             favicon: None,
             source: ResultSource::History,
             visit_count: Some(visit_count as u32),
-            last_visit: Some(last_visit),
+            last_visit: Some(
+                Timestamp::from_second(last_visit).expect("The timestamp should be correct"),
+            ),
         })
     })?;
 
@@ -243,18 +255,23 @@ pub fn get_firefox_history(db_path: &Path) -> Result<Vec<SearchResult>, Box<dyn 
         let last_visit: i64 = row.get(3)?;
 
         // format date by user‐configured strftime
-        let fmt = std::env::var("date_format").unwrap_or_else(|_| "%d.%m.%Y".into());
-        let dt = Utc.timestamp_opt(last_visit, 0).unwrap();
-        let date = dt.format(&fmt).to_string();
+        let date_format = std::env::var("date_format").unwrap_or_else(|_| "%d.%m.%Y".into());
+        let dt = Timestamp::from_second(last_visit)
+            .expect("We know this is correct")
+            .in_tz("UTC")
+            .unwrap();
+        let formatted_date = strtime::format(&date_format, &dt).unwrap();
 
         Ok(SearchResult {
             title,
             url,
-            subtitle: format!("Last visit: {} (Visits: {})", date, visit_count),
+            subtitle: format!("Last visit: {} (Visits: {})", formatted_date, visit_count),
             favicon: None,
             source: ResultSource::History,
             visit_count: Some(visit_count as u32),
-            last_visit: Some(last_visit),
+            last_visit: Some(
+                Timestamp::from_second(last_visit).expect("The timestamp should be correct"),
+            ),
         })
     })?;
 
