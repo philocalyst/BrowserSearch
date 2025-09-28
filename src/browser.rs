@@ -23,6 +23,7 @@ pub enum Browser {
     Edge,
     Zen,
     Opera,
+    Orion,
     Vivaldi,
     Arc,
     Chromium,
@@ -54,7 +55,7 @@ impl Browser {
 
     /// Returns true if this browser is based on WebKit.
     pub fn is_safari_like(&self) -> bool {
-        matches!(self, Browser::Safari)
+        matches!(self, Browser::Safari | Browser::Orion)
     }
 
     /// Get the display name of the browser
@@ -62,6 +63,7 @@ impl Browser {
         match self {
             Browser::Zen => "Zen",
             Browser::Chrome => "Google Chrome",
+            Browser::Orion => "Orion",
             Browser::ChromeBeta => "Google Chrome Beta",
             Browser::Brave => "Brave",
             Browser::BraveBeta => "Brave Beta",
@@ -80,6 +82,7 @@ impl Browser {
     pub fn env_var(&self) -> &'static str {
         match self {
             Browser::Chrome => "chrome",
+            Browser::Orion => "orion",
             Browser::Zen => "zen",
             Browser::ChromeBeta => "chrome_beta",
             Browser::Brave => "brave",
@@ -122,6 +125,11 @@ pub fn get_available_browsers() -> HashMap<Browser, BrowserPaths> {
             Browser::Chrome,
             "Library/Application Support/Google/Chrome/Default/History",
             "Library/Application Support/Google/Chrome/Default/Bookmarks",
+        ),
+        (
+            Browser::Orion,
+            "Library/Application Support/Orion/Defaults/history",
+            "Library/Application Support/Orion/Defaults/favourites.plist",
         ),
         (
             Browser::Brave,
@@ -186,7 +194,7 @@ pub fn get_available_browsers() -> HashMap<Browser, BrowserPaths> {
     ];
 
     for (browser, history_path, bookmarks_path) in browser_configs {
-        if !browser.is_enabled() {
+        if !browser.is_enabled() && !(browser.name() == "Orion") {
             continue;
         }
 
@@ -215,6 +223,8 @@ pub fn get_available_browsers() -> HashMap<Browser, BrowserPaths> {
                 }
             }
         }
+
+        dbg!(&history);
 
         browsers.insert(
             browser,
