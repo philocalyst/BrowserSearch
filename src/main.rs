@@ -1,17 +1,12 @@
-//! Entry point for the browser‐search Alfred workflow.
-//!
-//! - Parses CLI args: command (`bookmarks`/`history`/`search`) and query.
-//! - Dispatches to bookmarks::search, history::search, or both.
-//! - Deduplicates combined results, then calls alfred::output_results.
-//! - Uses env_logger for structured logging and prints execution time to debug.
-
 use std::error::Error;
+use std::path::PathBuf;
 use std::time::Instant;
 
+use alfrusco::config::{AlfredEnvProvider, WorkflowConfig};
+use alfrusco::{execute, AsyncRunnable, Item, Workflow, WorkflowError};
 use clap::{Parser, Subcommand};
 use log::{debug, LevelFilter};
 
-mod alfred;
 mod bookmarks;
 mod browser;
 mod cache;
@@ -38,7 +33,7 @@ struct Cli {
     command: Commands,
 }
 
-#[derive(Subcommand, Debug)]
+#[derive(Subcommand, Clone, Debug)]
 enum Commands {
     /// Search only bookmarks
     Bookmarks {
@@ -57,38 +52,111 @@ enum Commands {
     },
 }
 
+// Define error types compatible with alfrusco
+#[derive(Debug, thiserror::Error)]
+pub enum WorkflowErrorType {
+    #[error("Search error: {0}")]
+    Search(#[from] Box<dyn Error>),
+    #[error("Tab management error: {0}")]
+    Tab(#[from] tabs::TabError),
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("Serialization error: {0}")]
+    Serde(#[from] serde_json::Error),
+}
+
+impl WorkflowError for WorkflowErrorType {}
+
+impl Cli {
+    fn run_sync(self, workflow: &mut Workflow) -> Result<(), WorkflowErrorType> {
+        let start = Instant::now();
+
+        // Configure logging using alfrusco's init_logging (instead of env_logger manually)
+        let _ = alfrusco::init_logging(&AlfredEnvProvider);
+
+        // Dispatch based on command
+        let search_results = match self.command.clone() {
+            Commands::Bookmarks { query } => bookmarks::search(&query)?,
+            Commands::History { query } => history::search(&query)?,
+            Commands::Search { query } => {
+                let mut b = bookmarks::search(&query)?;
+                let h = history::search(&query)?;
+                b.extend(h);
+                search::deduplicate(b)
+            }
+        };
+
+        // Set the query for filtering
+        let query = match &self.command {
+            Commands::Bookmarks { query } => query,
+            Commands::History { query } => query,
+            Commands::Search { query } => query,
+        };
+        workflow.set_filter_keyword(query.clone());
+
+        // Convert SearchResult to Alfred Items
+        let items: Vec<Item> = search_results
+            .into_iter()
+            .map(|result| {
+                let mut item = Item::new(&result.title)
+                    .subtitle(&result.subtitle)
+                    .arg(&result.url)
+                    .valid(true);
+
+                // Add favicon if available
+                if let Some(favicon_path) = &result.favicon {
+                    item = item.icon_from_image(favicon_path);
+                }
+
+                // Add visit count as variable
+                if let Some(visit_count) = result.visit_count {
+                    item = item.var("visit_count", &visit_count.to_string());
+                }
+
+                // Add source as variable
+                item = item.var(
+                    "source",
+                    match result.source {
+                        search::ResultSource::Bookmark => "bookmark",
+                        search::ResultSource::History => "history",
+                    },
+                );
+
+                item
+            })
+            .collect();
+
+        workflow.append_items(items);
+        debug!("Search completed in {:?}", start.elapsed());
+        Ok(())
+    }
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
-    let start = Instant::now();
 
-    // Configure env_logger based on verbosity and quiet flags
-    let mut log_builder = env_logger::Builder::from_default_env();
-    if cli.quiet {
-        log_builder.filter_level(LevelFilter::Off);
-    } else {
-        match cli.verbose {
-            0 => log_builder.filter_level(LevelFilter::Info), // Default to Info if not quiet and no -v
-            1 => log_builder.filter_level(LevelFilter::Debug),
-            2 => log_builder.filter_level(LevelFilter::Trace),
-            _ => log_builder.filter_level(LevelFilter::Trace), // More than 2 -v also means Trace
-        };
-    }
-    log_builder.init();
+    let config = WorkflowConfig {
+        workflow_bundleid: "com.example.workflow".to_string(),
+        workflow_cache: PathBuf::from("/tmp/workflow_cache"),
+        workflow_data: PathBuf::from("/tmp/workflow_data"),
+        version: "1.0.0".to_string(),
+        version_build: "1".to_string(),
+        workflow_name: "Default Workflow".to_string(),
 
-    // Determine the query and search type
-    let search_results = match cli.command {
-        Commands::Bookmarks { query } => bookmarks::search(&query)?,
-        Commands::History { query } => history::search(&query)?,
-        Commands::Search { query } => {
-            let mut b = bookmarks::search(&query)?;
-            let h = history::search(&query)?;
-            b.extend(h);
-            search::deduplicate(b)
-        }
+        workflow_version: None,
+        preferences: None,
+        preferences_localhash: None,
+        theme: None,
+        theme_background: None,
+        theme_selection_background: None,
+        theme_subtext: None,
+        workflow_description: None,
+        workflow_uid: None,
+        workflow_keyword: None,
+        debug: false,
     };
 
-    // Emit Alfred JSON
-    alfred::output_results(&search_results)?;
-    debug!("Search completed in {:?}", start.elapsed());
+    let mut workflow = Workflow::new(config)?;
+    cli.run_sync(&mut workflow)?;
     Ok(())
 }
