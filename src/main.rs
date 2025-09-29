@@ -1,9 +1,10 @@
+use std::env;
 use std::error::Error;
 use std::path::PathBuf;
 use std::time::Instant;
 
 use alfrusco::config::{AlfredEnvProvider, WorkflowConfig};
-use alfrusco::{execute, AsyncRunnable, Item, Workflow, WorkflowError};
+use alfrusco::{execute, AsyncRunnable, Item, Runnable, Workflow, WorkflowError};
 use clap::{Parser, Subcommand};
 use log::{debug, LevelFilter};
 
@@ -67,8 +68,10 @@ pub enum WorkflowErrorType {
 
 impl WorkflowError for WorkflowErrorType {}
 
-impl Cli {
-    fn run_sync(self, workflow: &mut Workflow) -> Result<(), WorkflowErrorType> {
+impl Runnable for Cli {
+    type Error = WorkflowErrorType;
+
+    fn run(self, workflow: &mut Workflow) -> Result<(), WorkflowErrorType> {
         let start = Instant::now();
 
         // Configure logging using alfrusco's init_logging (instead of env_logger manually)
@@ -135,28 +138,6 @@ impl Cli {
 fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
 
-    let config = WorkflowConfig {
-        workflow_bundleid: "com.example.workflow".to_string(),
-        workflow_cache: PathBuf::from("/tmp/workflow_cache"),
-        workflow_data: PathBuf::from("/tmp/workflow_data"),
-        version: "1.0.0".to_string(),
-        version_build: "1".to_string(),
-        workflow_name: "Default Workflow".to_string(),
-
-        workflow_version: None,
-        preferences: None,
-        preferences_localhash: None,
-        theme: None,
-        theme_background: None,
-        theme_selection_background: None,
-        theme_subtext: None,
-        workflow_description: None,
-        workflow_uid: None,
-        workflow_keyword: None,
-        debug: false,
-    };
-
-    let mut workflow = Workflow::new(config)?;
-    cli.run_sync(&mut workflow)?;
+    execute(&AlfredEnvProvider, cli, &mut std::io::stdout());
     Ok(())
 }
