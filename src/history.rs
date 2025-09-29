@@ -231,6 +231,26 @@ fn get_safari_history(db_path: &Path) -> Result<Vec<SearchResult>, Box<dyn Error
     Ok(results)
 }
 
+fn get_orion_history(db_path: &Path) -> Result<Vec<SearchResult>, Box<dyn Error>> {
+    // Create a temporary copy of the database
+    let (_temp_file, conn) = create_temp_db_copy(db_path, None, None)?;
+
+    // Query the database
+    let sql = "
+        SELECT 
+            history_items.URL,
+            history_items.TITLE,
+            history_items.VISIT_COUNT,
+            (visits.VISIT_TIME + 978307200) AS last_visit_time
+        FROM history_items
+        INNER JOIN visits
+            ON visits.HISTORY_ITEM_ID = history_items.ID
+        WHERE 
+            history_items.URL IS NOT NULL AND
+            history_items.TITLE IS NOT NULL AND
+            history_items.URL != ''
+        ORDER BY history_items.VISIT_COUNT DESC";
+
     let results = query_safari_history(&conn, sql, |row| {
         let url: String = row.get(0)?;
         let title: String = row.get(1)?;
