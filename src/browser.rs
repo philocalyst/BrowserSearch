@@ -30,6 +30,7 @@ pub enum Browser {
     Sidekick,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum BrowserFamily {
     /// Generally based upon Firefox infrastructure
     Gecko,
@@ -213,7 +214,7 @@ pub fn get_available_browsers() -> HashMap<Browser, BrowserPaths> {
         let mut bookmarks = home.join(bookmarks_path);
 
         // If it's a variant of firefox.
-        if browser.is_firefox_like() {
+        if browser.browser_family() == BrowserFamily::Gecko {
             // Scan each profile directory for places.sqlite
             if let Ok(entries) = fs::read_dir(&history) {
                 // Get stored profiles
@@ -232,8 +233,6 @@ pub fn get_available_browsers() -> HashMap<Browser, BrowserPaths> {
                 }
             }
         }
-
-        dbg!(&history);
 
         browsers.insert(
             browser,
