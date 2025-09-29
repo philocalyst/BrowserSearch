@@ -28,11 +28,11 @@ pub fn search(query: &str) -> Result<Vec<SearchResult>, Box<dyn Error>> {
         .par_iter()
         .filter_map(|(browser, paths)| {
             if let Some(history_path) = &paths.history {
-                let result = match browser {
-                    b if b.is_safari_like() => get_safari_history(history_path),
-                    b if b.is_firefox_like() => get_firefox_history(history_path),
-                    b if b.is_chrome_like() => get_chrome_history(history_path),
-                    _ => unreachable!("unsupported browser: {:?}", browser),
+                let result = match browser.browser_family() {
+                    crate::browser::BrowserFamily::Webkit => get_safari_history(history_path),
+                    crate::browser::BrowserFamily::Gecko => get_firefox_history(history_path),
+                    crate::browser::BrowserFamily::Chromium => get_chrome_history(history_path),
+                    crate::browser::BrowserFamily::Orion => get_orion_history(history_path),
                 };
 
                 match result {
@@ -179,21 +179,57 @@ fn get_chrome_history(db_path: &Path) -> Result<Vec<SearchResult>, Box<dyn Error
     Ok(filtered_results)
 }
 
-/// Get Safari history
+/// Get Safari history using the custom schema
 fn get_safari_history(db_path: &Path) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     // Create a temporary copy of the database
     let (_temp_file, conn) = create_temp_db_copy(db_path, None, None)?;
 
     // Query the database
-    let sql = "SELECT history_items.url, history_visits.title, history_items.visit_count,
-         (history_visits.visit_time + 978307200) AS last_visit_time
-         FROM history_items
-         INNER JOIN history_visits
-         ON history_visits.history_item = history_items.id
-         WHERE history_items.url IS NOT NULL AND
-         history_visits.title IS NOT NULL AND
-         history_items.url != ''
-         ORDER BY visit_count DESC";
+    let sql = "
+        SELECT 
+            history_items.URL,
+            history_items.TITLE,
+            history_items.VISIT_COUNT,
+            (visits.VISIT_TIME + 978307200) AS last_visit_time
+        FROM history_items
+        INNER JOIN visits
+            ON visits.HISTORY_ITEM_ID = history_items.ID
+        WHERE 
+            history_items.URL IS NOT NULL AND
+            history_items.TITLE IS NOT NULL AND
+            history_items.URL != ''
+        ORDER BY history_items.VISIT_COUNT DESC";
+
+    let results = query_safari_history(&conn, sql, |row| {
+        let url: String = row.get(0)?;
+        let title: String = row.get(1)?;
+        let visit_count: i32 = row.get(2)?;
+        let last_visit_f: f64 = row.get(3)?;
+        let last_visit: i64 = last_visit_f as i64;
+
+        // Format date based on user preference
+        let date_format = std::env::var("date_format").unwrap_or("%d.%m.%Y".to_string());
+        let dt = Timestamp::from_second(last_visit)
+            .expect("We know this is correct")
+            .in_tz("UTC")
+            .unwrap();
+        let formatted_date = strtime::format(&date_format, &dt).unwrap();
+
+        Ok(SearchResult {
+            title,
+            url,
+            subtitle: format!("Last visit: {} (Visits: {})", formatted_date, visit_count),
+            favicon: None,
+            source: ResultSource::History,
+            visit_count: Some(visit_count as u32),
+            last_visit: Some(
+                Timestamp::from_second(last_visit).expect("The timestamp should be correct"),
+            ),
+        })
+    })?;
+
+    Ok(results)
+}
 
     let results = query_safari_history(&conn, sql, |row| {
         let url: String = row.get(0)?;
