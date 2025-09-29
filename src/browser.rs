@@ -30,32 +30,41 @@ pub enum Browser {
     Sidekick,
 }
 
+pub(crate) enum BrowserFamily {
+    /// Generally based upon Firefox infrastructure
+    Gecko,
+
+    /// Generally based upon Chrome infastructure
+    Chromium,
+
+    /// Generally based upon Safari infastructure
+    Webkit,
+
+    /// Orion
+    Orion,
+}
+
 impl Browser {
     /// Returns true if this browser is based on Chromium.
-    pub fn is_chrome_like(&self) -> bool {
-        matches!(
-            self,
+    pub fn browser_family(&self) -> BrowserFamily {
+        match self {
             Browser::Chrome
-                | Browser::ChromeBeta
-                | Browser::Brave
-                | Browser::BraveBeta
-                | Browser::Edge
-                | Browser::Opera
-                | Browser::Vivaldi
-                | Browser::Arc
-                | Browser::Chromium
-                | Browser::Sidekick
-        )
-    }
+            | Browser::ChromeBeta
+            | Browser::Brave
+            | Browser::BraveBeta
+            | Browser::Edge
+            | Browser::Opera
+            | Browser::Vivaldi
+            | Browser::Arc
+            | Browser::Chromium
+            | Browser::Sidekick => BrowserFamily::Chromium,
 
-    /// Returns true if this browser is based on Firefox.
-    pub fn is_firefox_like(&self) -> bool {
-        matches!(self, Browser::Firefox | Browser::Zen)
-    }
+            Browser::Firefox | Browser::Zen => BrowserFamily::Gecko,
 
-    /// Returns true if this browser is based on WebKit.
-    pub fn is_safari_like(&self) -> bool {
-        matches!(self, Browser::Safari | Browser::Orion)
+            Browser::Safari => BrowserFamily::Webkit,
+
+            Browser::Orion => BrowserFamily::Orion,
+        }
     }
 
     /// Get the display name of the browser
