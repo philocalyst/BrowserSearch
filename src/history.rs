@@ -6,7 +6,6 @@
 //!   limiting to MAX_RESULTS.
 //! - After gathering, it calls `fetch_favicons` to populate icons.
 use crate::browser::get_available_browsers;
-use crate::cache::get_cached_results;
 use crate::db::{create_temp_db_copy, query_chrome_history, query_safari_history};
 use crate::search::{filter_results, ResultSource, SearchResult};
 use crate::tie_break::break_a_tie;

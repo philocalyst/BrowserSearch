@@ -10,7 +10,6 @@ use log::{debug, LevelFilter};
 
 mod bookmarks;
 mod browser;
-mod cache;
 mod db;
 mod history;
 mod search;
