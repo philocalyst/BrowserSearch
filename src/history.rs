@@ -88,7 +88,6 @@ pub fn search(query: &str) -> Result<Vec<SearchResult>, Box<dyn Error>> {
                 .unwrap_or(u16::MIN); // If no match is found, fallback to the smallest value of a u16 (0)
             (score, item)
         })
-        .take(result_count) // We take here because it's a local maximum, which means it reduces overhead while also maximizing results even if other components have no results to give.
         .fold(HashMap::new(), |mut acc, (score, item)| {
             acc.entry(score).or_default().push(item);
             acc
@@ -112,8 +111,11 @@ pub fn search(query: &str) -> Result<Vec<SearchResult>, Box<dyn Error>> {
         }
     }
 
+    let count = result_count.min(final_results.len());
+    let top_slice: &mut [SearchResult] = &mut final_results[..count];
+
     // After all processing is finished, download the relevant favicons.
-    fetch_favicons(&mut final_results)?;
+    fetch_favicons(top_slice)?;
 
     Ok(final_results)
 }
@@ -196,13 +198,12 @@ fn get_safari_history(db_path: &Path) -> Result<Vec<SearchResult>, Box<dyn Error
             ON visits.HISTORY_ITEM_ID = history_items.ID
         WHERE 
             history_items.URL IS NOT NULL AND
-            history_items.TITLE IS NOT NULL AND
             history_items.URL != ''
         ORDER BY history_items.VISIT_COUNT DESC";
 
     let results = query_safari_history(&conn, sql, |row| {
         let url: String = row.get(0)?;
-        let title: String = row.get(1)?;
+        let title: String = row.get(1).unwrap_or(url.clone()); // If there's not title, fallback on the URL
         let visit_count: i32 = row.get(2)?;
         let last_visit_f: f64 = row.get(3)?;
         let last_visit: i64 = last_visit_f as i64;
