@@ -28,9 +28,10 @@ pub fn get_domain(url_str: &str) -> Option<String> {
 /// Fetch favicons in parallel and store them under `$CACHE_DIR/browser_search_favicons`.
 /// On success, sets `result.favicon = Some(path)`.
 pub fn fetch_favicons(results: &mut [SearchResult]) -> Result<(), Box<dyn Error>> {
-    if !get_env_bool("show_favicon") {
+    if get_env_bool("show_favicon") {
         return Ok(());
     }
+
     // Determine cache directory
     let cache_dir = dirs::cache_dir()
         .ok_or("no cache dir")?

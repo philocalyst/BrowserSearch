@@ -120,7 +120,6 @@ fn list_tabs(browser: &Browser) -> Result<Vec<Tab>, TabError> {
     let script_content = match browser {
         Browser::Arc => include_str!("./list-arc.js"),
         Browser::Safari => include_str!("./list-webkit.js"),
-        Browser::Zen => include_str!("./list-gecko.js"),
         _ => include_str!("./list-chromium.js"),
     };
 

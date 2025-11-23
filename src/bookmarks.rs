@@ -39,7 +39,7 @@ pub fn search(query: &str) -> Result<Vec<SearchResult>, Box<dyn Error>> {
                     crate::browser::BrowserFamily::Chromium => {
                         search_chrome_bookmarks(bookmarks_path, query)
                     }
-                    crate::browser::BrowserFamily::Orion => search_orion_bookmarks(bookmarks_path),
+                    _ => Err("nah no orion pls".into()),
                 };
 
                 match result {
