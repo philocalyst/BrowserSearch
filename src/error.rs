@@ -1,3 +1,9 @@
+use std::error::Error;
+
+use alfrusco::WorkflowError;
+
+use crate::tabs;
+
 // Define error types compatible with alfrusco
 #[derive(Debug, thiserror::Error)]
 pub enum WorkflowErrorType {
