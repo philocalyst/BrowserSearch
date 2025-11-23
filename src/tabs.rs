@@ -118,19 +118,19 @@ struct TabItem {
 /// List tabs from standard browsers (Chrome, Firefox, etc.)
 fn list_tabs(browser: &Browser) -> Result<Vec<Tab>, TabError> {
     let script_content = match browser {
-        Browser::Arc => include_str!("./list-arc.js"),
-        Browser::Safari => include_str!("./list-webkit.js"),
-        _ => include_str!("./list-chromium.js"),
+        Browser::Arc => include_str!("./scripts/list-arc.js"),
+        Browser::Safari => include_str!("./scripts/list-webkit.js"),
+        _ => include_str!("./scripts/list-chromium.js"),
     };
 
     let script = JavaScript::new(script_content);
 
-    let response: String = script.execute_with_params(browser.name())?;
+    let response: String = script.execute_with_params(browser.to_string())?;
     let tabs_response: TabList = serde_json::from_str(&response)?;
 
     // Check if browser is not running
     if tabs_response.items.len() == 1 && tabs_response.items[0].title.contains("is not running") {
-        return Err(TabError::BrowserNotRunning(browser.name().to_string()));
+        return Err(TabError::BrowserNotRunning(browser.to_string()));
     }
 
     // Convert a tab list to a series of tabs
@@ -154,9 +154,9 @@ fn list_tabs(browser: &Browser) -> Result<Vec<Tab>, TabError> {
 pub fn focus_tab(browser: &Browser, tab: &Tab) -> Result<(), TabError> {
     // Choose the appropriate script based on browser type
     let script_content = match browser {
-        Browser::Arc => include_str!("./focus-arc.js"),
-        Browser::Safari => include_str!("./focus-webkit.js"),
-        _ => include_str!("./focus-chromium.js"),
+        Browser::Arc => include_str!("./scripts/focus-arc.js"),
+        Browser::Safari => include_str!("./scripts/focus-webkit.js"),
+        _ => include_str!("./scripts/focus-chromium.js"),
     };
 
     let script = JavaScript::new(script_content);
@@ -170,7 +170,7 @@ pub fn focus_tab(browser: &Browser, tab: &Tab) -> Result<(), TabError> {
 
     // Execute with browser name and query as parameters
     let response: String =
-        script.execute_with_params::<_, String>(vec![browser.name(), query.as_str()])?;
+        script.execute_with_params::<_, String>(vec![browser.to_string(), query])?;
 
     println!("{response}");
 

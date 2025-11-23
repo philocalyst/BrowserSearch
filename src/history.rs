@@ -27,7 +27,7 @@ pub fn search(query: &str) -> Result<Vec<SearchResult>, Box<dyn Error>> {
         .par_iter()
         .filter_map(|(browser, paths)| {
             if let Some(history_path) = &paths.history {
-                let result = match browser.browser_family() {
+                let result = match browser.family() {
                     crate::browser::BrowserFamily::Webkit => get_safari_history(history_path),
                     crate::browser::BrowserFamily::Gecko => get_firefox_history(history_path),
                     crate::browser::BrowserFamily::Chromium => get_chrome_history(history_path),
