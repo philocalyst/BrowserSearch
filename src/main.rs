@@ -8,49 +8,17 @@ use alfrusco::{execute, AsyncRunnable, Item, Runnable, Workflow, WorkflowError};
 use clap::{Parser, Subcommand};
 use log::{debug, LevelFilter};
 
+use crate::cli::{Cli, Commands};
+
 mod bookmarks;
 mod browser;
+mod cli;
 mod db;
 mod history;
 mod search;
 mod tabs;
 mod tie_break;
 mod utils;
-
-/// A CLI tool for searching browser bookmarks and history via Alfred.
-#[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
-struct Cli {
-    /// Increase verbosity (e.g., -v, -vv, -vvv)
-    #[arg(short, long, action = clap::ArgAction::Count)]
-    verbose: u8,
-
-    /// Suppress all log output
-    #[arg(short, long)]
-    quiet: bool,
-
-    #[command(subcommand)]
-    command: Commands,
-}
-
-#[derive(Subcommand, Clone, Debug)]
-enum Commands {
-    /// Search only bookmarks
-    Bookmarks {
-        #[arg(default_value_t = String::new(), help = "The search query")]
-        query: String,
-    },
-    /// Search only history
-    History {
-        #[arg(default_value_t = String::new(), help = "The search query")]
-        query: String,
-    },
-    /// Search both bookmarks and history (default if no specific subcommand or query given)
-    Search {
-        #[arg(default_value_t = String::new(), help = "The search query")]
-        query: String,
-    },
-}
 
 // Define error types compatible with alfrusco
 #[derive(Debug, thiserror::Error)]
