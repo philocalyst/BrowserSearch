@@ -26,3 +26,4 @@ clap = { version = "4.5.48", features = ["derive"] }
 async-trait = "0.1.89"
 alfrusco = "0.1.9"
 tokio = "1.47.1"
+sea-query = "0.32.7"
