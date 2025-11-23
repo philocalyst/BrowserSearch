@@ -8,11 +8,10 @@
 //!   SeaQuery for type-safe SQL, and filter_results to match the query.
 
 use crate::browser::{get_available_browsers, BrowserFamily};
-use crate::db::create_temp_db_copy;
 use crate::search::{filter_results, ResultSource, SearchResult};
 use plist::Value as PlistValue;
 use rayon::prelude::*;
-use rusqlite::{params_from_iter, Connection};
+use rusqlite::{params_from_iter, Connection, OpenFlags};
 use sea_query::{Expr, Iden, Query, SqliteQueryBuilder};
 use serde_json::Value;
 use std::error::Error;
@@ -234,7 +233,7 @@ fn search_gecko_bookmarks(
     query: &str,
 ) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     // Copy the locked db for easy access
-    let (_tmp, conn) = create_temp_db_copy(bookmark_path, None, None)?;
+    let conn = Connection::open_with_flags(bookmark_path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
 
     // Build the query using SeaQuery
     let query_builder = Query::select()

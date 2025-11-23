@@ -7,14 +7,13 @@
 //! - After gathering, it calls `fetch_favicons` to populate icons.
 
 use crate::browser::get_available_browsers;
-use crate::db::create_temp_db_copy;
 use crate::search::{ResultSource, SearchResult};
 use crate::tie_break::break_a_tie;
 use crate::utils::fetch_favicons;
 use jiff::{fmt::strtime, Timestamp};
 use nucleo::{Matcher, Utf32Str};
 use rayon::prelude::*;
-use rusqlite::{params_from_iter, Connection, Row};
+use rusqlite::{params_from_iter, Connection, OpenFlags, Row};
 use sea_query::{Alias, Expr, Func, Iden, Query, SqliteQueryBuilder};
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
@@ -182,7 +181,7 @@ pub fn search(query: &str) -> Result<Vec<SearchResult>, Box<dyn Error>> {
 /// Get Chrome-based browser history
 fn get_chrome_history(db_path: &Path) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     // Create a temporary copy of the database
-    let (_temp_file, conn) = create_temp_db_copy(db_path, None, None)?;
+    let conn = Connection::open_with_flags(db_path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
 
     // Get the ignored domains from environment
     let ignored_domains: Vec<String> = std::env::var("ignored_domains")
@@ -232,7 +231,7 @@ fn get_chrome_history(db_path: &Path) -> Result<Vec<SearchResult>, Box<dyn Error
 /// Get Safari history using the custom schema
 fn get_safari_history(db_path: &Path) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     // Create a temporary copy of the database
-    let (_temp_file, conn) = create_temp_db_copy(db_path, None, None)?;
+    let conn = Connection::open_with_flags(db_path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
 
     // Build the query using SeaQuery
     // (visits.VISIT_TIME + 978307200)
@@ -270,7 +269,7 @@ fn get_safari_history(db_path: &Path) -> Result<Vec<SearchResult>, Box<dyn Error
 /// Get Orion history
 fn get_orion_history(db_path: &Path) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     // Create a temporary copy of the database
-    let (_temp_file, conn) = create_temp_db_copy(db_path, None, None)?;
+    let conn = Connection::open_with_flags(db_path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
 
     // Build the query using SeaQuery
     // (visits.VISIT_TIME + 978307200)
@@ -309,7 +308,7 @@ fn get_orion_history(db_path: &Path) -> Result<Vec<SearchResult>, Box<dyn Error>
 /// Get Firefox history
 pub fn get_firefox_history(db_path: &Path) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     // Copy locked DB out of the way
-    let (_tmpfile, conn) = create_temp_db_copy(db_path, None, None)?;
+    let conn = Connection::open_with_flags(db_path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
 
     // Build the query using SeaQuery
     // (moz_historyvisits.visit_date/1000000)

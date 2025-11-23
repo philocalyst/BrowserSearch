@@ -12,7 +12,6 @@ use crate::error::WorkflowErrorType;
 mod bookmarks;
 mod browser;
 mod cli;
-mod db;
 mod error;
 mod history;
 mod search;
