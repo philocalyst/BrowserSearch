@@ -91,11 +91,14 @@ pub fn search(query: &str) -> Result<Vec<SearchResult>, Box<dyn Error>> {
         .par_iter()
         .filter_map(|(browser, paths)| {
             if let Some(history_path) = &paths.history {
+                let db =
+                    Connection::open_with_flags(history_path, OpenFlags::SQLITE_OPEN_READ_ONLY)
+                        .unwrap();
                 let result = match browser.family() {
-                    crate::browser::BrowserFamily::Webkit => get_safari_history(history_path),
-                    crate::browser::BrowserFamily::Gecko => get_firefox_history(history_path),
-                    crate::browser::BrowserFamily::Chromium => get_chrome_history(history_path),
-                    crate::browser::BrowserFamily::Orion => get_orion_history(history_path),
+                    crate::browser::BrowserFamily::Webkit => get_safari_history(&db),
+                    crate::browser::BrowserFamily::Gecko => get_firefox_history(&db),
+                    crate::browser::BrowserFamily::Chromium => get_chrome_history(&db),
+                    crate::browser::BrowserFamily::Orion => get_orion_history(&db),
                 };
 
                 match result {
@@ -179,10 +182,7 @@ pub fn search(query: &str) -> Result<Vec<SearchResult>, Box<dyn Error>> {
 }
 
 /// Get Chrome-based browser history
-fn get_chrome_history(db_path: &Path) -> Result<Vec<SearchResult>, Box<dyn Error>> {
-    // Create a temporary copy of the database
-    let conn = Connection::open_with_flags(db_path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
-
+fn get_chrome_history(database: &Connection) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     // Get the ignored domains from environment
     let ignored_domains: Vec<String> = std::env::var("ignored_domains")
         .unwrap_or_default()
@@ -213,7 +213,7 @@ fn get_chrome_history(db_path: &Path) -> Result<Vec<SearchResult>, Box<dyn Error
     let (sql, values) = query_builder.build(SqliteQueryBuilder);
 
     // Execute query
-    let results = execute_chrome_query(&conn, &sql, values)?;
+    let results = execute_chrome_query(&database, &sql, values)?;
 
     // Filter out ignored domains
     let filtered_results = results
@@ -229,10 +229,7 @@ fn get_chrome_history(db_path: &Path) -> Result<Vec<SearchResult>, Box<dyn Error
 }
 
 /// Get Safari history using the custom schema
-fn get_safari_history(db_path: &Path) -> Result<Vec<SearchResult>, Box<dyn Error>> {
-    // Create a temporary copy of the database
-    let conn = Connection::open_with_flags(db_path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
-
+fn get_safari_history(database: &Connection) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     // Build the query using SeaQuery
     // (visits.VISIT_TIME + 978307200)
     let last_visit_expr = Expr::col((SafariVisits::Table, SafariVisits::VisitTime)).add(978307200);
@@ -261,16 +258,13 @@ fn get_safari_history(db_path: &Path) -> Result<Vec<SearchResult>, Box<dyn Error
     let (sql, values) = query_builder.build(SqliteQueryBuilder);
 
     // Execute query
-    let results = execute_safari_query(&conn, &sql, values, true)?;
+    let results = execute_safari_query(&database, &sql, values, true)?;
 
     Ok(results)
 }
 
 /// Get Orion history
-fn get_orion_history(db_path: &Path) -> Result<Vec<SearchResult>, Box<dyn Error>> {
-    // Create a temporary copy of the database
-    let conn = Connection::open_with_flags(db_path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
-
+fn get_orion_history(database: &Connection) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     // Build the query using SeaQuery
     // (visits.VISIT_TIME + 978307200)
     let last_visit_expr = Expr::col((SafariVisits::Table, SafariVisits::VisitTime)).add(978307200);
@@ -300,16 +294,13 @@ fn get_orion_history(db_path: &Path) -> Result<Vec<SearchResult>, Box<dyn Error>
     let (sql, values) = query_builder.build(SqliteQueryBuilder);
 
     // Execute query
-    let results = execute_safari_query(&conn, &sql, values, false)?;
+    let results = execute_safari_query(&database, &sql, values, false)?;
 
     Ok(results)
 }
 
 /// Get Firefox history
-pub fn get_firefox_history(db_path: &Path) -> Result<Vec<SearchResult>, Box<dyn Error>> {
-    // Copy locked DB out of the way
-    let conn = Connection::open_with_flags(db_path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
-
+pub fn get_firefox_history(database: &Connection) -> Result<Vec<SearchResult>, Box<dyn Error>> {
     // Build the query using SeaQuery
     // (moz_historyvisits.visit_date/1000000)
     let last_visit_expr =
@@ -337,7 +328,7 @@ pub fn get_firefox_history(db_path: &Path) -> Result<Vec<SearchResult>, Box<dyn 
     let (sql, values) = query_builder.build(SqliteQueryBuilder);
 
     // Execute query
-    let results = execute_chrome_query(&conn, &sql, values)?;
+    let results = execute_chrome_query(&database, &sql, values)?;
 
     Ok(results)
 }
