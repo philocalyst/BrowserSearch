@@ -1,39 +1,24 @@
-use std::env;
 use std::error::Error;
-use std::path::PathBuf;
 use std::time::Instant;
 
-use alfrusco::config::{AlfredEnvProvider, WorkflowConfig};
-use alfrusco::{execute, AsyncRunnable, Item, Runnable, Workflow, WorkflowError};
-use clap::{Parser, Subcommand};
-use log::{debug, LevelFilter};
+use alfrusco::config::AlfredEnvProvider;
+use alfrusco::{execute, Item, Runnable, Workflow};
+use clap::Parser;
+use log::debug;
 
 use crate::cli::{Cli, Commands};
+use crate::error::WorkflowErrorType;
 
 mod bookmarks;
 mod browser;
 mod cli;
 mod db;
+mod error;
 mod history;
 mod search;
 mod tabs;
 mod tie_break;
 mod utils;
-
-// Define error types compatible with alfrusco
-#[derive(Debug, thiserror::Error)]
-pub enum WorkflowErrorType {
-    #[error("Search error: {0}")]
-    Search(#[from] Box<dyn Error>),
-    #[error("Tab management error: {0}")]
-    Tab(#[from] tabs::TabError),
-    #[error("IO error: {0}")]
-    Io(#[from] std::io::Error),
-    #[error("Serialization error: {0}")]
-    Serde(#[from] serde_json::Error),
-}
-
-impl WorkflowError for WorkflowErrorType {}
 
 impl Runnable for Cli {
     type Error = WorkflowErrorType;
